@@ -95,9 +95,8 @@ and `TZ=UTC`.
 
 `deploye-elefin.sh` provisions a server end-to-end: Node + nginx + **redis** +
 certbot + PM2, clones the repo, and sets `REDIS_URL=redis://127.0.0.1:6379`.
-Run it as **root** — it creates/uses an unprivileged `ubuntu` user (override
-`DEPLOY_USER=`), chowns the checkout to it, and re-execs the deploy as that user
-so nothing builds or runs as root. `CERTBOT_EMAIL=you@example.com ./deploye-elefin.sh`.
+Run it as root (or any sudoer): `CERTBOT_EMAIL=you@example.com ./deploye-elefin.sh`
+— add `APP_DIR=$(pwd)` to deploy from an existing checkout.
 
 ### Phase 0 — foundations (done)
 

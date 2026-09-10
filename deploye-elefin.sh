@@ -2,9 +2,8 @@
 # =============================================================================
 #  deploye-elefin.sh  —  one-shot deploy for the Elefin Partner CRM
 # =============================================================================
-#  Target : Ubuntu / Debian server. Run it as root — it hands the deploy off
-#           to an unprivileged user ('ubuntu' by default, created if missing).
-#           Running as a sudo-capable user directly also works.
+#  Target : Ubuntu / Debian server. Run as root, or as any sudo-capable user
+#           (system commands are prefixed with sudo automatically when needed).
 #  Does   :
 #    1. installs Node 22, git, nginx, redis-server, certbot, PM2
 #    2. clones / updates  https://github.com/vipinpal70/elefin-crm.git @ master
@@ -36,8 +35,6 @@
 #    RUN_SEED=true                  ENABLE_UFW=true
 #    SKIP_SSL=false                 FORCE_SSL=false  (attempt cert even if DNS
 #                                                    does not point here yet)
-#    DEPLOY_USER=ubuntu            unprivileged user to deploy as (created if
-#                                 missing); DEPLOY_USER=root stays as root
 # =============================================================================
 set -Eeuo pipefail
 
@@ -53,10 +50,6 @@ RUN_SEED="${RUN_SEED:-true}"
 ENABLE_UFW="${ENABLE_UFW:-true}"
 SKIP_SSL="${SKIP_SSL:-false}"
 FORCE_SSL="${FORCE_SSL:-false}"
-DEPLOY_USER="${DEPLOY_USER:-ubuntu}"
-
-# Absolute path to this script, so we can re-exec it after switching user.
-SELF="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/$(basename -- "${BASH_SOURCE[0]}")"
 
 REQUIRED_ENV_KEYS=(MONGODB_URI ELEFIN_API_KEY ELEFIN_API_SECRET SESSION_SECRET)
 NGINX_SITE="/etc/nginx/sites-available/${DOMAIN}"
@@ -86,63 +79,10 @@ set_env() {
 
 # ---------------------------------------------------------------- preflight ----
 step "Preflight"
-
-# Launched as root? Set up an unprivileged user and hand the deploy off to it,
-# unless the operator asked to stay root (DEPLOY_USER=root). ELEFIN_REEXEC guards
-# against looping once we're back in here as that user.
-if [ "$(id -u)" -eq 0 ] && [ "${ELEFIN_REEXEC:-}" != 1 ] && [ "$DEPLOY_USER" != root ]; then
-  export DEBIAN_FRONTEND=noninteractive
-  have sudo || { apt-get update -qq && apt-get install -y -qq sudo; }
-
-  if ! id "$DEPLOY_USER" >/dev/null 2>&1; then
-    warn "user '$DEPLOY_USER' does not exist — creating it (home + bash + passwordless sudo)"
-    useradd --create-home --shell /bin/bash "$DEPLOY_USER"
-    printf '%s ALL=(ALL) NOPASSWD:ALL\n' "$DEPLOY_USER" \
-      > "/etc/sudoers.d/90-${DEPLOY_USER}-deploy"
-    chmod 0440 "/etc/sudoers.d/90-${DEPLOY_USER}-deploy"
-  elif ! sudo -u "$DEPLOY_USER" sudo -n true >/dev/null 2>&1; then
-    warn "granting '$DEPLOY_USER' passwordless sudo for the deploy"
-    printf '%s ALL=(ALL) NOPASSWD:ALL\n' "$DEPLOY_USER" \
-      > "/etc/sudoers.d/90-${DEPLOY_USER}-deploy"
-    chmod 0440 "/etc/sudoers.d/90-${DEPLOY_USER}-deploy"
-  fi
-
-  # The deploy user must own its home and (if it already exists) its checkout,
-  # or git / npm / next build will fail on writes.
-  DEPLOY_HOME="$(getent passwd "$DEPLOY_USER" | cut -d: -f6)"
-  [ -n "$DEPLOY_HOME" ] && chown "$DEPLOY_USER:$DEPLOY_USER" "$DEPLOY_HOME" 2>/dev/null || true
-  if [ -e "$APP_DIR" ]; then
-    chown -R "$DEPLOY_USER:$DEPLOY_USER" "$APP_DIR" 2>/dev/null || true
-  fi
-
-  # Make sure the target user can read this script; copy to /tmp if not.
-  if ! sudo -u "$DEPLOY_USER" test -r "$SELF" 2>/dev/null; then
-    install -m 0755 "$SELF" /tmp/deploye-elefin.sh
-    SELF=/tmp/deploye-elefin.sh
-  fi
-
-  step "Handing off to '$DEPLOY_USER'"
-  exec sudo -u "$DEPLOY_USER" -H env \
-    ELEFIN_REEXEC=1 DEPLOY_USER="$DEPLOY_USER" \
-    DOMAIN="$DOMAIN" REPO_URL="$REPO_URL" BRANCH="$BRANCH" APP_DIR="$APP_DIR" \
-    NODE_MAJOR="$NODE_MAJOR" WEB_PORT="$WEB_PORT" CERTBOT_EMAIL="$CERTBOT_EMAIL" \
-    RUN_SEED="$RUN_SEED" ENABLE_UFW="$ENABLE_UFW" SKIP_SSL="$SKIP_SSL" FORCE_SSL="$FORCE_SSL" \
-    bash "$SELF" "$@"
-fi
-
-# From here we are the deploy user (or root, if DEPLOY_USER=root).
-if [ "$(id -u)" -eq 0 ]; then
-  SUDO=""            # already root — run system commands directly
-  RUN_USER="root"
-  RUN_HOME="/root"
-  warn "running as root (DEPLOY_USER=root) — fine for a dedicated VPS"
-else
-  SUDO="sudo"
-  have sudo || die "sudo not found for $(id -un) — install it, or run as root"
-  sudo -v  || die "$(id -un) lacks sudo privileges — add it to sudoers, or run as root"
-  RUN_USER="$(id -un)"
-  RUN_HOME="$HOME"
-fi
+# As root, run system commands directly; otherwise prefix them with sudo.
+if [ "$(id -u)" -eq 0 ]; then SUDO=""; else SUDO="sudo"; fi
+RUN_USER="$(id -un)"
+RUN_HOME="$HOME"
 if ! have curl; then $SUDO apt-get update -qq && $SUDO apt-get install -y -qq curl; fi
 ok "user=${RUN_USER}  domain=${DOMAIN}  dir=${APP_DIR}  branch=${BRANCH}"
 
@@ -182,7 +122,8 @@ else warn "redis-cli ping did not return PONG — check 'systemctl status redis-
 # ---------------------------------------------------------------- code ---------
 step "Fetch source into ${APP_DIR}"
 $SUDO mkdir -p "$(dirname "$APP_DIR")"
-$SUDO chown "${RUN_USER}:${RUN_USER}" "$(dirname "$APP_DIR")"
+# Non-root run: make sure we can write into the parent of the checkout.
+[ -n "$SUDO" ] && $SUDO chown "${RUN_USER}:${RUN_USER}" "$(dirname "$APP_DIR")" || true
 if [ -d "${APP_DIR}/.git" ]; then
   git config --global --add safe.directory "$APP_DIR" 2>/dev/null || true
   git -C "$APP_DIR" remote set-url origin "$REPO_URL"
@@ -377,5 +318,3 @@ ${c_green}======================================================================
                in .env to turn it off.
 ${c_green}==========================================================================${c_reset}
 EOF
-
-[ "$SELF" = /tmp/deploye-elefin.sh ] && rm -f /tmp/deploye-elefin.sh || true
