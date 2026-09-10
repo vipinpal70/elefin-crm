@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { Types } from "mongoose";
 import { connect, Alert } from "@elefin/db";
+import { invalidate } from "@elefin/cache";
 import { requireSession } from "@/lib/auth";
 import { audit } from "@/lib/audit";
 
@@ -15,6 +16,7 @@ export async function acknowledgeAlert(id: string): Promise<void> {
   );
   await audit(s.sub, "alert.acknowledge", { entity: "alert", entityId: id });
   revalidatePath("/alerts");
+  await invalidate("alerts");
 }
 
 export async function unacknowledgeAlert(id: string): Promise<void> {
@@ -26,6 +28,7 @@ export async function unacknowledgeAlert(id: string): Promise<void> {
   );
   await audit(s.sub, "alert.reopen", { entity: "alert", entityId: id });
   revalidatePath("/alerts");
+  await invalidate("alerts");
 }
 
 export async function snoozeAlert(id: string, days: number): Promise<void> {
@@ -38,4 +41,5 @@ export async function snoozeAlert(id: string, days: number): Promise<void> {
   );
   await audit(s.sub, "alert.snooze", { entity: "alert", entityId: id, meta: { days: d } });
   revalidatePath("/alerts");
+  await invalidate("alerts");
 }

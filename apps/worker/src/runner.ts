@@ -1,5 +1,22 @@
 import { SyncRun, type SyncJob } from "@elefin/db";
+import { invalidate, type Tag } from "@elefin/cache";
 import { log } from "./logger";
+
+/**
+ * Which cache tags a job's data feeds. After a job succeeds we bump these so the
+ * web app's cached reads pick up the new rows on their next request.
+ */
+const JOB_CACHE_TAGS: Record<SyncJob, Tag[]> = {
+  me: ["config"],
+  clients: ["clients", "book"],
+  accounts: ["clients"],
+  transactions: ["funding", "book"],
+  trades: ["trades", "book"],
+  positions: ["positions"],
+  snapshot: ["book"],
+  alerts: ["alerts"],
+  digest: ["digest"],
+};
 
 export interface JobResult {
   apiCalls?: number;
@@ -49,6 +66,8 @@ export async function runJob(job: SyncJob, fn: Job): Promise<JobOutcome> {
       `= ${job} ${res.partial ? "partial" : "ok"} in ${(durationMs / 1000).toFixed(1)}s ` +
         `(${res.apiCalls ?? 0} calls, ${res.docsUpserted ?? 0} docs)`,
     );
+    // Evict the web app's cached reads that depend on what this job just wrote.
+    await invalidate(...(JOB_CACHE_TAGS[job] ?? []));
     return {
       runId: String(run._id),
       status: res.partial ? "partial" : "ok",

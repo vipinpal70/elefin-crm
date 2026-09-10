@@ -34,16 +34,21 @@ services:
       ME_CONFIG_MONGODB_URL: mongodb://root:example@mongo:27017/
       ME_CONFIG_BASICAUTH: "false"
 
-  # Reserved for a future BullMQ queue (not used by node-cron worker yet).
+  # Read-through cache for the web app (REDIS_URL=redis://localhost:6379).
   redis:
     image: redis:7-alpine
     container_name: elefin_redis
     restart: unless-stopped
-    profiles: ["queue"]
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
     ports:
       - "6379:6379"
     volumes:
       - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
 
 volumes:
   mongo_data:

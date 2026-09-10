@@ -5,6 +5,7 @@
  */
 import "./env"; // loads repo-root .env before anything reads process.env
 import { connect, disconnect, type SyncJob } from "@elefin/db";
+import { closeCache } from "@elefin/cache";
 import { log } from "./logger";
 import { runJob } from "./runner";
 import { JOBS } from "./jobs";
@@ -18,4 +19,5 @@ if (!arg || !(arg in JOBS)) {
 
 await connect();
 await runJob(arg, JOBS[arg]);
+await closeCache();
 await disconnect();

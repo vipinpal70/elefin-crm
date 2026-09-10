@@ -1,4 +1,5 @@
 import { connect, ClientNote, CrmUser, Client } from "@elefin/db";
+import { cached } from "@elefin/cache";
 
 export interface NoteRow {
   _id: string;
@@ -25,6 +26,14 @@ export interface FollowUpRow extends NoteRow {
 
 /** Open follow-ups (dueAt set, not done) across every client, soonest first. */
 export async function fetchOpenFollowUps(limit = 50): Promise<FollowUpRow[]> {
+  return cached(
+    `open-followups:${limit}`,
+    { ttl: 60, tags: ["notes"] },
+    () => loadOpenFollowUps(limit),
+  );
+}
+
+async function loadOpenFollowUps(limit: number): Promise<FollowUpRow[]> {
   await connect();
   const notes = await ClientNote.find({ dueAt: { $ne: null }, doneAt: null })
     .sort({ dueAt: 1 })

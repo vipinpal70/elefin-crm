@@ -1,4 +1,5 @@
 import { connect, BookDaily } from "@elefin/db";
+import { cached } from "@elefin/cache";
 import type { TSPoint } from "@/components/charts/time-series";
 
 export interface BookPoint {
@@ -28,11 +29,28 @@ const nz = (v: unknown) => {
 };
 
 /** The book_daily series for one referral code ("*" = all). */
-export async function fetchBookSeries(opts: {
+export async function fetchBookSeries(
+  opts: {
+    code?: string;
+    from?: Date;
+    to?: Date;
+  } = {},
+): Promise<BookPoint[]> {
+  const code = opts.code || "*";
+  const from = opts.from ? opts.from.toISOString() : "";
+  const to = opts.to ? opts.to.toISOString() : "";
+  return cached(
+    `book-series:${code}:${from}:${to}`,
+    { ttl: 900, tags: ["book"] },
+    () => loadBookSeries(opts),
+  );
+}
+
+async function loadBookSeries(opts: {
   code?: string;
   from?: Date;
   to?: Date;
-} = {}): Promise<BookPoint[]> {
+}): Promise<BookPoint[]> {
   await connect();
 
   const filter: Record<string, unknown> = {

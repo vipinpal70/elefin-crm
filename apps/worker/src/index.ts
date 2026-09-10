@@ -1,5 +1,6 @@
 import cron from "node-cron";
 import { connect, disconnect } from "@elefin/db";
+import { closeCache } from "@elefin/cache";
 import { env, hasElefinCreds } from "./env";
 import { log } from "./logger";
 import { runJob } from "./runner";
@@ -85,6 +86,7 @@ async function shutdown(signal: string) {
   if (shuttingDown) return;
   shuttingDown = true;
   log.info(`${signal} received, shutting down`);
+  await closeCache().catch(() => undefined);
   await disconnect().catch(() => undefined);
   process.exit(0);
 }

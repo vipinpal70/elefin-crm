@@ -1,4 +1,5 @@
 import { connect, AppConfig } from "@elefin/db";
+import { cached } from "@elefin/cache";
 import type { BookPoint } from "./book-daily";
 
 export interface TargetRow {
@@ -25,6 +26,10 @@ export interface TargetConfig {
 }
 
 export async function readTargetConfig(): Promise<TargetConfig> {
+  return cached("target-config", { ttl: 300, tags: ["config"] }, loadTargetConfig);
+}
+
+async function loadTargetConfig(): Promise<TargetConfig> {
   await connect();
   const cfg = await AppConfig.findById("targets").lean();
   const t = (cfg?.data ?? {}) as Record<string, unknown>;

@@ -1,4 +1,5 @@
 import { connect, Client } from "@elefin/db";
+import { cached, hashKey } from "@elefin/cache";
 import { plain } from "./serialize";
 import { openNoteCounts } from "./notes-data";
 import { buildFilter, sortSpec, type ClientsQuery } from "./clients-query";
@@ -49,6 +50,14 @@ export interface ClientsResult {
 }
 
 export async function fetchClients(q: ClientsQuery): Promise<ClientsResult> {
+  return cached(
+    `clients-list:${hashKey(q)}`,
+    { ttl: 60, tags: ["clients", "notes"] },
+    () => loadClients(q),
+  );
+}
+
+async function loadClients(q: ClientsQuery): Promise<ClientsResult> {
   await connect();
   const filter = buildFilter(q);
 

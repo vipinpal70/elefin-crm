@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { connect, Client, toNumber } from "@elefin/db";
+import { cached } from "@elefin/cache";
 import { bookKpis, conversionFunnel, round } from "@elefin/domain";
 import { fetchBookSeries, bucketWeekly, periodDeltas, type PeriodDelta } from "@/lib/book-daily";
 import { fetchTopAlerts } from "@/lib/alerts-data";
@@ -44,6 +45,34 @@ interface CodeStat {
 }
 
 async function loadBook() {
+  // The full-book scan + KPI/funnel/by-code roll-up is the expensive part and
+  // only changes when a sync writes new client rows or a snapshot lands.
+  const core = await cached(
+    "dashboard-core",
+    { ttl: 120, tags: ["clients", "book"] },
+    loadDashboardCore,
+  );
+
+  const [series, topAlerts, followUps, digest] = await Promise.all([
+    fetchBookSeries(),
+    fetchTopAlerts(6),
+    fetchOpenFollowUps(6),
+    fetchLatestDigest(),
+  ]);
+  const targets = await fetchTargets(series);
+
+  return {
+    ...core,
+    series,
+    deltas: periodDeltas(series, 30),
+    topAlerts,
+    followUps,
+    targets,
+    digest,
+  };
+}
+
+async function loadDashboardCore() {
   await connect();
   const rows = await Client.find({}, PROJECTION).lean();
 
@@ -67,11 +96,12 @@ async function loadBook() {
     commissionEarned: toNumber(r.commissionEarned),
   }));
 
-  const lastSynced = rows
+  const lastSyncedRaw = rows
     .map((r) => r.lastSyncedAt)
     .filter(Boolean)
     .sort()
     .at(-1) as Date | undefined;
+  const lastSynced = lastSyncedRaw ? new Date(lastSyncedRaw).toISOString() : null;
 
   const byCode = new Map<string, CodeStat>();
   for (const c of clients) {
@@ -87,15 +117,14 @@ async function loadBook() {
   const topClients = [...clients]
     .filter((c) => c.commissionEarned > 0)
     .sort((a, b) => b.commissionEarned - a.commissionEarned)
-    .slice(0, 8);
-
-  const [series, topAlerts, followUps, digest] = await Promise.all([
-    fetchBookSeries(),
-    fetchTopAlerts(6),
-    fetchOpenFollowUps(6),
-    fetchLatestDigest(),
-  ]);
-  const targets = await fetchTargets(series);
+    .slice(0, 8)
+    .map((c) => ({
+      _id: c._id,
+      name: c.name,
+      tradingLots: c.tradingLots,
+      tradingTrades: c.tradingTrades,
+      commissionEarned: c.commissionEarned,
+    }));
 
   return {
     count: rows.length,
@@ -106,12 +135,6 @@ async function loadBook() {
       .sort((a, b) => b.commission - a.commission || b.clients - a.clients),
     topClients,
     lastSynced,
-    series,
-    deltas: periodDeltas(series, 30),
-    topAlerts,
-    followUps,
-    targets,
-    digest,
   };
 }
 

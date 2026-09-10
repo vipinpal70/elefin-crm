@@ -1,4 +1,5 @@
 import { connect, Client, FundingEvent } from "@elefin/db";
+import { cached } from "@elefin/cache";
 import { conversionFunnel } from "@elefin/domain";
 import { fetchBookSeries, bucketWeekly } from "@/lib/book-daily";
 import { fetchRetention } from "@/lib/retention";
@@ -19,7 +20,15 @@ const DEPOSIT_BANDS: Array<[string, number, number]> = [
   ["$1k+", 1000, Infinity],
 ];
 
-async function load() {
+function load() {
+  return cached(
+    "analytics-page",
+    { ttl: 900, tags: ["clients", "funding", "trades", "book"] },
+    loadAnalytics,
+  );
+}
+
+async function loadAnalytics() {
   await connect();
 
   const [series, clients, deposits, retention] = await Promise.all([

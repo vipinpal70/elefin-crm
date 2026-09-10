@@ -36,8 +36,8 @@ npm install
 # 2. config
 cp .env.example .env         # set SESSION_SECRET, SEED_OWNER_PASSWORD, and (optional) ELEFIN_API_*
 
-# 3. database
-npm run db:up                # mongo in docker on :27017
+# 3. database + cache
+npm run db:up                # mongo :27017 + redis :6379 in docker
 npm run db:migrate           # collections + indexes
 npm run db:seed              # create the first owner from SEED_OWNER_*
 
@@ -46,8 +46,23 @@ npm run dev                  # web on http://localhost:3000
 npm run dev:worker           # sync worker (runs /me on boot)
 ```
 
-Health check: `curl localhost:3000/api/health`.
+Health check: `curl localhost:3000/api/health` → `{ ok, db, cache }`.
 Run one worker job by hand: `npm run job --workspace @elefin/worker -- me`.
+
+### Caching (Redis)
+
+`@elefin/cache` is a read-through cache in front of the web app's dashboards,
+lists and analytics. It is **optional** — leave `REDIS_URL` unset and every read
+goes straight to MongoDB; a Redis that is down or slow is transparently
+bypassed (it can never fail or block a page).
+
+Invalidation is by **tag**, not TTL. Each cached read declares the data groups
+it derives from (`clients`, `funding`, `trades`, `positions`, `book`, `alerts`,
+`digest`, `config`, `notes`). The worker bumps the relevant tags after every
+successful sync job (`apps/worker/src/runner.ts`), and server actions bump them
+after a write, so pages refresh within a request of the data changing. TTLs
+(45s–30min) are only a backstop. `CACHE_DISABLED=1` forces every read uncached;
+`CACHE_SCHEMA=<n>` drops every cached value at once.
 
 ## Production (PM2)
 
@@ -56,7 +71,7 @@ worker as two long-lived services under [PM2](https://pm2.keymetrics.io/).
 
 ```bash
 npm ci
-cp .env.example .env && $EDITOR .env      # MONGODB_URI, ELEFIN_API_*, SESSION_SECRET…
+cp .env.example .env && $EDITOR .env      # MONGODB_URI, ELEFIN_API_*, SESSION_SECRET, REDIS_URL…
 npm run db:migrate
 npm run db:seed                            # first owner (skips if users exist)
 
@@ -77,6 +92,9 @@ Both processes are `fork` mode, `instances: 1` (the worker's cron scheduler and
 guard, and `max_memory_restart`. Logs land in `./logs/{web,worker}.{out,err}.log`.
 Each process reads the repo-root `.env` itself; PM2 only pins `NODE_ENV=production`
 and `TZ=UTC`.
+
+`deploye-elefin.sh` provisions a server end-to-end: Node + nginx + **redis** +
+certbot + PM2, clones the repo, and sets `REDIS_URL=redis://127.0.0.1:6379`.
 
 ### Phase 0 — foundations (done)
 

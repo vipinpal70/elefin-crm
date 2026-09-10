@@ -1,6 +1,7 @@
 import { connect, CrmUser, AppConfig, AuditLog } from "@elefin/db";
 import { ALERT_RULES, type AlertType } from "@elefin/domain";
 import { createElefinApi } from "@elefin/elefin-client";
+import { cached } from "@elefin/cache";
 
 export interface CrmUserRow {
   _id: string;
@@ -13,6 +14,10 @@ export interface CrmUserRow {
 }
 
 export async function fetchUsers(): Promise<CrmUserRow[]> {
+  return cached("crm-users", { ttl: 300, tags: ["config"] }, loadUsers);
+}
+
+async function loadUsers(): Promise<CrmUserRow[]> {
   await connect();
   const rows = await CrmUser.find({}).sort({ createdAt: 1 }).lean();
   return rows.map((u) => ({
@@ -28,6 +33,12 @@ export async function fetchUsers(): Promise<CrmUserRow[]> {
 
 /** Effective alert thresholds = catalogue defaults overlaid with stored config. */
 export async function fetchAlertThresholds(): Promise<
+  Array<{ type: AlertType; description: string; params: Array<{ key: string; value: number; isDefault: boolean }> }>
+> {
+  return cached("alert-thresholds", { ttl: 600, tags: ["config"] }, loadAlertThresholds);
+}
+
+async function loadAlertThresholds(): Promise<
   Array<{ type: AlertType; description: string; params: Array<{ key: string; value: number; isDefault: boolean }> }>
 > {
   await connect();
@@ -60,6 +71,14 @@ export interface AuditRow {
 }
 
 export async function fetchAuditLog(limit = 60): Promise<AuditRow[]> {
+  return cached(
+    `audit-log:${limit}`,
+    { ttl: 20, tags: ["config"] },
+    () => loadAuditLog(limit),
+  );
+}
+
+async function loadAuditLog(limit: number): Promise<AuditRow[]> {
   await connect();
   const rows = await AuditLog.find({}).sort({ at: -1 }).limit(limit).lean();
   const ids = [
@@ -96,6 +115,11 @@ export interface CredentialStatus {
 }
 
 export async function fetchCredentialStatus(): Promise<CredentialStatus> {
+  // Caches the Elefin `/me` round-trip — the one external API call on this page.
+  return cached("credential-status", { ttl: 300, tags: ["config"] }, loadCredentialStatus);
+}
+
+async function loadCredentialStatus(): Promise<CredentialStatus> {
   try {
     const api = createElefinApi();
     const me = await api.me();

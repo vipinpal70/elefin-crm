@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { connect, Client, toNumber } from "@elefin/db";
+import { cached } from "@elefin/cache";
 import { fetchBookSeries } from "@/lib/book-daily";
 import { KpiCard } from "@/components/kpi-card";
 import { Card } from "@/components/ui/card";
@@ -9,7 +10,15 @@ import { cn } from "@/lib/cn";
 
 export const dynamic = "force-dynamic";
 
-async function load() {
+function load() {
+  return cached(
+    "commission-page",
+    { ttl: 600, tags: ["clients", "book"] },
+    loadCommission,
+  );
+}
+
+async function loadCommission() {
   await connect();
   const rows = await Client.find(
     {},

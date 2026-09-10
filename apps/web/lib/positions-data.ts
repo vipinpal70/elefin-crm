@@ -1,4 +1,5 @@
 import { connect, Position, Client, SyncRun } from "@elefin/db";
+import { cached } from "@elefin/cache";
 import { plain } from "./serialize";
 
 export interface OpenPositionRow {
@@ -29,6 +30,10 @@ export interface PositionsResult {
 }
 
 export async function fetchPositions(): Promise<PositionsResult> {
+  return cached("positions", { ttl: 45, tags: ["positions"] }, loadPositions);
+}
+
+async function loadPositions(): Promise<PositionsResult> {
   await connect();
   const [docs, lastRun] = await Promise.all([
     Position.find({}).sort({ unrealizedPnl: 1 }).lean(),

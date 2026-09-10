@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { connect, CrmUser, AppConfig } from "@elefin/db";
 import { ROLES } from "@elefin/db";
+import { invalidate } from "@elefin/cache";
 import { requireRole, requireSession, hashPassword } from "@/lib/auth";
 import { audit } from "@/lib/audit";
 
@@ -51,6 +52,7 @@ export async function createUser(
     meta: { email, role: parsed.data.role },
   });
   revalidatePath("/settings");
+  await invalidate("config");
   return { ok: `Created ${email}.` };
 }
 
@@ -64,6 +66,7 @@ export async function setUserActive(userId: string, active: boolean): Promise<vo
     entityId: userId,
   });
   revalidatePath("/settings");
+  await invalidate("config");
 }
 
 export async function resetUserPassword(fd: FormData): Promise<void> {
@@ -78,6 +81,7 @@ export async function resetUserPassword(fd: FormData): Promise<void> {
   );
   await audit(owner.sub, "user.reset_password", { entity: "user", entityId: userId });
   revalidatePath("/settings");
+  await invalidate("config");
 }
 
 export async function changeOwnPassword(
@@ -122,6 +126,7 @@ export async function updateTargets(fd: FormData): Promise<void> {
   );
   await audit(owner.sub, "config.targets", { entity: "config", entityId: "targets", meta: data });
   revalidatePath("/settings");
+  await invalidate("config");
   revalidatePath("/");
 }
 
@@ -144,4 +149,5 @@ export async function updateAlertThresholds(fd: FormData): Promise<void> {
   );
   await audit(owner.sub, "config.alert_thresholds", { entity: "config", entityId: "alerts", meta: data });
   revalidatePath("/settings");
+  await invalidate("config");
 }

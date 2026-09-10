@@ -1,5 +1,6 @@
 import { connect, Account, Client, Trade, Position } from "@elefin/db";
 import { tradingStats, type TradingStats } from "@elefin/domain";
+import { cached } from "@elefin/cache";
 import { plain } from "./serialize";
 import { parseRange, rangeClause, type DateRange } from "./range";
 import type { SP } from "./clients-query";
@@ -64,6 +65,19 @@ export interface AccountHistory {
 }
 
 export async function fetchAccountHistory(
+  login: string,
+  sp: SP,
+): Promise<AccountHistory | null> {
+  const range = parseRange(sp);
+  const symbol = one(sp.symbol) ?? "";
+  return cached(
+    `acct-history:${login}:${range.from ?? ""}:${range.to ?? ""}:${symbol}`,
+    { ttl: 120, tags: ["trades", "positions", "clients"] },
+    () => loadAccountHistory(login, sp),
+  );
+}
+
+async function loadAccountHistory(
   login: string,
   sp: SP,
 ): Promise<AccountHistory | null> {

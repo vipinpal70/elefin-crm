@@ -1,4 +1,5 @@
 import { connect, FundingEvent, Client } from "@elefin/db";
+import { cached, hashKey } from "@elefin/cache";
 import type { FilterQuery } from "mongoose";
 import { plain } from "./serialize";
 import { parseRange, rangeClause } from "./range";
@@ -82,6 +83,14 @@ export interface FundingResult {
 }
 
 export async function fetchFunding(q: FundingQuery): Promise<FundingResult> {
+  return cached(
+    `funding:${hashKey(q)}`,
+    { ttl: 120, tags: ["funding", "clients"] },
+    () => loadFunding(q),
+  );
+}
+
+async function loadFunding(q: FundingQuery): Promise<FundingResult> {
   await connect();
   const filter = buildFilter(q);
 

@@ -1,4 +1,5 @@
 import { connect, Alert, Client } from "@elefin/db";
+import { cached, hashKey } from "@elefin/cache";
 import { plain } from "./serialize";
 import type { SP } from "./clients-query";
 
@@ -48,7 +49,19 @@ export interface TopAlert {
 }
 
 /** The most urgent open alerts, for the dashboard. */
-export async function fetchTopAlerts(limit = 6): Promise<{ rows: TopAlert[]; total: number }> {
+export async function fetchTopAlerts(
+  limit = 6,
+): Promise<{ rows: TopAlert[]; total: number }> {
+  return cached(
+    `top-alerts:${limit}`,
+    { ttl: 60, tags: ["alerts"] },
+    () => loadTopAlerts(limit),
+  );
+}
+
+async function loadTopAlerts(
+  limit: number,
+): Promise<{ rows: TopAlert[]; total: number }> {
   await connect();
   const now = new Date();
   const filter = {
@@ -95,6 +108,14 @@ export async function fetchTopAlerts(limit = 6): Promise<{ rows: TopAlert[]; tot
 }
 
 export async function fetchAlerts(q: AlertsQuery): Promise<AlertsResult> {
+  return cached(
+    `alerts-list:${hashKey(q)}`,
+    { ttl: 30, tags: ["alerts"] },
+    () => loadAlerts(q),
+  );
+}
+
+async function loadAlerts(q: AlertsQuery): Promise<AlertsResult> {
   await connect();
   const now = new Date();
 

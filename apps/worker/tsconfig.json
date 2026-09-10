@@ -5,7 +5,8 @@
     "paths": {
       "@elefin/db": ["../../packages/db/src/index.ts"],
       "@elefin/domain": ["../../packages/domain/src/index.ts"],
-      "@elefin/elefin-client": ["../../packages/elefin-client/src/index.ts"]
+      "@elefin/elefin-client": ["../../packages/elefin-client/src/index.ts"],
+      "@elefin/cache": ["../../packages/cache/src/index.ts"]
     }
   },
   "include": ["src/**/*.ts"]

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { connect, Client, toNumber } from "@elefin/db";
+import { cached } from "@elefin/cache";
 import { fetchBookSeries, bucketWeekly } from "@/lib/book-daily";
 import { Card } from "@/components/ui/card";
 import { TimeSeries, type TSPoint } from "@/components/charts/time-series";
@@ -22,7 +23,15 @@ interface CodeRow {
   commission: number;
 }
 
-async function load() {
+function load() {
+  return cached(
+    "referral-codes-page",
+    { ttl: 600, tags: ["clients", "book"] },
+    loadReferralCodes,
+  );
+}
+
+async function loadReferralCodes() {
   await connect();
   const rows = await Client.find(
     {},

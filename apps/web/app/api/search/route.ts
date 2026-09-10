@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { connect, Client, Account } from "@elefin/db";
+import { cached } from "@elefin/cache";
 import { requireSession } from "@/lib/auth";
 import type { SearchHit } from "@/lib/search-types";
 
@@ -13,6 +14,15 @@ export async function GET(req: NextRequest) {
   const q = (req.nextUrl.searchParams.get("q") ?? "").trim();
   if (q.length < 2) return NextResponse.json({ hits: [] });
 
+  const hits = await cached(
+    `search:${q.toLowerCase()}`,
+    { ttl: 30, tags: ["clients"] },
+    () => runSearch(q),
+  );
+  return NextResponse.json({ hits });
+}
+
+async function runSearch(q: string): Promise<SearchHit[]> {
   await connect();
   const rx = new RegExp(escapeRegex(q), "i");
   const asNum = Number(q);
@@ -37,7 +47,7 @@ export async function GET(req: NextRequest) {
       .lean(),
   ]);
 
-  const hits: SearchHit[] = [
+  return [
     ...clients.map((c) => ({
       type: "client" as const,
       id: String(c._id),
@@ -55,6 +65,4 @@ export async function GET(req: NextRequest) {
       href: `/accounts/${a._id}/history`,
     })),
   ];
-
-  return NextResponse.json({ hits });
 }

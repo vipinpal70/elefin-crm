@@ -1,4 +1,5 @@
 import { connect, Client, Trade } from "@elefin/db";
+import { cached } from "@elefin/cache";
 
 const WEEK = 7 * 86_400_000;
 
@@ -25,6 +26,14 @@ export interface RetentionGrid {
  * A funded client "retained" in week k if they closed ≥1 trade in that week.
  */
 export async function fetchRetention(): Promise<RetentionGrid> {
+  return cached(
+    "retention",
+    { ttl: 1800, tags: ["clients", "trades"] },
+    loadRetention,
+  );
+}
+
+async function loadRetention(): Promise<RetentionGrid> {
   await connect();
 
   const clients = await Client.find(

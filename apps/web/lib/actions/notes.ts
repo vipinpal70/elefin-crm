@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { Types } from "mongoose";
 import { z } from "zod";
 import { connect, ClientNote } from "@elefin/db";
+import { invalidate } from "@elefin/cache";
 import { requireSession } from "@/lib/auth";
 import { audit } from "@/lib/audit";
 
@@ -29,6 +30,7 @@ export async function addNote(clientId: number, fd: FormData): Promise<void> {
   await audit(s.sub, "note.add", { entity: "client", entityId: String(clientId) });
   revalidatePath(`/clients/${clientId}`);
   revalidatePath("/alerts");
+  await invalidate("notes");
 }
 
 export async function toggleNoteDone(noteId: string): Promise<void> {
@@ -44,6 +46,7 @@ export async function toggleNoteDone(noteId: string): Promise<void> {
   });
   revalidatePath(`/clients/${note.clientId}`);
   revalidatePath("/alerts");
+  await invalidate("notes");
 }
 
 export async function deleteNote(noteId: string): Promise<void> {
@@ -57,4 +60,5 @@ export async function deleteNote(noteId: string): Promise<void> {
   await audit(s.sub, "note.delete", { entity: "client", entityId: String(note.clientId) });
   revalidatePath(`/clients/${note.clientId}`);
   revalidatePath("/alerts");
+  await invalidate("notes");
 }

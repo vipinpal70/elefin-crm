@@ -8,9 +8,14 @@ loadEnv({ path: path.resolve(process.cwd(), "../../.env") });
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   // Workspace TS packages are shipped as source; let Next compile them.
-  transpilePackages: ["@elefin/db", "@elefin/domain", "@elefin/elefin-client"],
-  // Mongoose must not be bundled — it uses dynamic requires.
-  serverExternalPackages: ["mongoose", "bcryptjs"],
+  transpilePackages: [
+    "@elefin/db",
+    "@elefin/domain",
+    "@elefin/elefin-client",
+    "@elefin/cache",
+  ],
+  // These must not be bundled — mongoose/ioredis use dynamic requires.
+  serverExternalPackages: ["mongoose", "bcryptjs", "ioredis"],
 };
 
 export default nextConfig;
