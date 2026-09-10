@@ -1,0 +1,32 @@
+# deps
+node_modules/
+.pnp.*
+
+# builds
+.next/
+dist/
+out/
+build/
+*.tsbuildinfo
+
+# env / secrets
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# logs
+*.log
+npm-debug.log*
+logs/
+
+# os / editor
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# data / scratch
+/data/
+*.pid
+coverage/

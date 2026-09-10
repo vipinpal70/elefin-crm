@@ -1,0 +1,50 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
+    "jsx": "preserve",
+    "allowJs": true,
+    "noEmit": true,
+    "incremental": true,
+    "module": "esnext",
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "paths": {
+      "@/*": [
+        "./*"
+      ],
+      "@elefin/db": [
+        "../../packages/db/src/index.ts"
+      ],
+      "@elefin/db/*": [
+        "../../packages/db/src/*"
+      ],
+      "@elefin/elefin-client": [
+        "../../packages/elefin-client/src/index.ts"
+      ],
+      "@elefin/domain": [
+        "../../packages/domain/src/index.ts"
+      ],
+      "@elefin/domain/*": [
+        "../../packages/domain/src/*"
+      ]
+    },
+    "isolatedModules": true
+  },
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}

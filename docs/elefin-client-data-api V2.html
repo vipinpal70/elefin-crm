@@ -1,0 +1,612 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="description" content="Integration guide for the Elefin CRM API v1 client and account endpoints: authentication, key scoping, the clients.read and clients.pii abilities, seven endpoints, every field and errors.">
+<meta name="theme-color" content="#0040E9">
+<title>Elefin Client Data API</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=satoshi@300,400,500,600,700,900&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<style>
+  :root {
+    /* from elefin-frontend app/globals.css @theme */
+    --brand:    #0040E9;   /* --color-primary */
+    --canvas:   #FFFDFD;   /* --color-canvas  */
+    --slatey:   #8DA4AF;   /* --color-slatey  */
+
+    --ground:   var(--canvas);
+    --raised:   #F3F5FB;
+    --ink:      #000000;
+    --ink-2:    #656565;   /* --color-ink-muted */
+    --muted:    #7E8B99;
+    --rule:     #E4E8F3;
+    --rule-2:   #CFD7E8;
+    --accent:   var(--brand);
+    --accent-bg:#E7EDFE;
+    --ok:       #0E6B45;
+    --ok-bg:    #E1F1E8;
+    --err:      #B3261E;
+    --err-bg:   #FBE9E6;
+    --logo:     var(--brand);
+
+    --sans: "Satoshi", "Inter", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+    --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:   #07080D;
+      --raised:   #101423;
+      --ink:      #F2F4F9;
+      --ink-2:    #9CA5B8;
+      --muted:    #6F7A8C;
+      --rule:     #1B2030;
+      --rule-2:   #2A3145;
+      --accent:   #7C9CFF;
+      --accent-bg:#121A35;
+      --ok:       #5FD39B;
+      --ok-bg:    #0D2119;
+      --err:      #FF9C90;
+      --err-bg:   #2A1512;
+      --logo:     #FFFFFF;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground:   #07080D;
+    --raised:   #101423;
+    --ink:      #F2F4F9;
+    --ink-2:    #9CA5B8;
+    --muted:    #6F7A8C;
+    --rule:     #1B2030;
+    --rule-2:   #2A3145;
+    --accent:   #7C9CFF;
+    --accent-bg:#121A35;
+    --ok:       #5FD39B;
+    --ok-bg:    #0D2119;
+    --err:      #FF9C90;
+    --err-bg:   #2A1512;
+    --logo:     #FFFFFF;
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; scroll-padding-top: 24px; }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 15.5px;
+    line-height: 1.62;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .shell { max-width: 1160px; margin: 0 auto; padding: 0 28px; }
+
+  /* ── masthead ─────────────────────────────────────────── */
+  .mast { padding: 64px 0 44px; border-bottom: 1px solid var(--rule); }
+  .logo { display: block; height: 38px; width: auto; margin-bottom: 30px; --fill-0: var(--logo); }
+  .logo path[fill="white"], .logo rect[fill="white"] { fill: var(--ground); }
+  .eyebrow {
+    font-family: var(--mono); font-size: 11px; font-weight: 500;
+    letter-spacing: .17em; text-transform: uppercase; color: var(--accent);
+  }
+  .mast h1 {
+    margin: 14px 0 0; font-size: clamp(34px, 5.4vw, 52px); font-weight: 700;
+    letter-spacing: -0.033em; line-height: 1.05; text-wrap: balance;
+  }
+  .mast .stand {
+    margin: 16px 0 0; max-width: 60ch; font-size: 18px; color: var(--ink-2); line-height: 1.55;
+  }
+  .facts { display: flex; flex-wrap: wrap; gap: 10px 34px; margin-top: 30px; }
+  .fact { display: flex; flex-direction: column; gap: 3px; }
+  .fact dt {
+    font-family: var(--mono); font-size: 10.5px; letter-spacing: .13em;
+    text-transform: uppercase; color: var(--muted);
+  }
+  .fact dd { margin: 0; font-family: var(--mono); font-size: 13.5px; }
+
+  /* ── layout ───────────────────────────────────────────── */
+  .cols { display: block; padding: 44px 0 120px; }
+  @media (min-width: 1040px) {
+    .cols { display: grid; grid-template-columns: 196px 1fr; gap: 56px; align-items: start; }
+    nav.toc { position: sticky; top: 24px; }
+  }
+  nav.toc { font-size: 13.5px; }
+  nav.toc h2 {
+    margin: 0 0 12px; font-family: var(--mono); font-size: 10.5px; font-weight: 500;
+    letter-spacing: .14em; text-transform: uppercase; color: var(--muted);
+  }
+  nav.toc ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 1px; }
+  nav.toc a {
+    display: block; padding: 4px 10px; margin-left: -10px; border-radius: 6px;
+    color: var(--ink-2); text-decoration: none;
+  }
+  nav.toc a:hover { color: var(--ink); background: var(--raised); }
+  nav.toc .sub a { padding-left: 22px; font-family: var(--mono); font-size: 12px; }
+  nav.toc a:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  @media (max-width: 1039px) {
+    nav.toc { margin-bottom: 44px; padding-bottom: 28px; border-bottom: 1px solid var(--rule); }
+    nav.toc ol { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px,1fr)); }
+  }
+
+  main { min-width: 0; }
+  section { padding-top: 8px; margin-bottom: 60px; }
+  section > h2 {
+    margin: 0 0 6px; font-size: 25px; font-weight: 700; letter-spacing: -0.022em;
+  }
+  section > .intro { margin: 0 0 24px; max-width: 68ch; color: var(--ink-2); }
+  h3 { margin: 34px 0 10px; font-size: 17px; font-weight: 600; letter-spacing: -0.012em; }
+  p { max-width: 68ch; }
+  a { color: var(--accent); }
+
+  code {
+    font-family: var(--mono); font-size: .88em;
+    background: var(--raised); border: 1px solid var(--rule);
+    padding: 1px 5px; border-radius: 5px;
+  }
+  pre {
+    margin: 14px 0 0; padding: 16px 18px; overflow-x: auto;
+    background: var(--raised); border: 1px solid var(--rule); border-radius: 10px;
+    font-family: var(--mono); font-size: 12.8px; line-height: 1.62;
+  }
+  pre code { background: none; border: 0; padding: 0; font-size: inherit; }
+
+  table { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 14px; }
+  th, td { text-align: left; padding: 9px 14px 9px 0; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  th {
+    font-family: var(--mono); font-size: 10.5px; font-weight: 500;
+    letter-spacing: .11em; text-transform: uppercase; color: var(--muted);
+    border-bottom-color: var(--rule-2);
+  }
+  td:first-child { font-family: var(--mono); font-size: 12.8px; white-space: nowrap; padding-right: 22px; }
+  td.wrap:first-child { white-space: normal; }
+  .scroller { overflow-x: auto; }
+
+  ul.plain { margin: 12px 0 0; padding-left: 20px; max-width: 68ch; }
+  ul.plain li { margin-bottom: 7px; }
+
+  /* ── endpoint blocks ──────────────────────────────────── */
+  .ep { border: 1px solid var(--rule); border-radius: 12px; padding: 22px 24px; margin-bottom: 16px; }
+  .ep-head { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+  .verb {
+    font-family: var(--mono); font-size: 10.5px; font-weight: 600; letter-spacing: .09em;
+    padding: 3px 8px; border-radius: 5px; background: var(--ok-bg); color: var(--ok);
+  }
+  .ep-head .path { font-family: var(--mono); font-size: 15px; font-weight: 500; }
+  .need {
+    margin-left: auto; font-family: var(--mono); font-size: 11.5px;
+    padding: 3px 9px; border-radius: 999px;
+    background: var(--accent-bg); color: var(--accent); border: 1px solid transparent;
+  }
+  .need.none { background: none; color: var(--muted); border-color: var(--rule-2); }
+  .ep .lede { margin: 12px 0 0; color: var(--ink-2); }
+
+  details { margin-top: 16px; }
+  summary {
+    cursor: pointer; font-family: var(--mono); font-size: 11.5px; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--muted); list-style: none;
+  }
+  summary::-webkit-details-marker { display: none; }
+  summary::before { content: "▸ "; }
+  details[open] summary::before { content: "▾ "; }
+  summary:hover { color: var(--ink); }
+  summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 3px; }
+
+  /* ── callouts ─────────────────────────────────────────── */
+  .note {
+    margin: 20px 0 0; padding: 15px 18px; border-radius: 10px;
+    background: var(--raised); border: 1px solid var(--rule);
+    border-left: 3px solid var(--accent); max-width: 72ch;
+  }
+  .note b { display: block; margin-bottom: 3px; font-size: 14px; }
+  .note p { margin: 0; font-size: 14px; color: var(--ink-2); max-width: none; }
+  .note.warn { border-left-color: var(--err); }
+
+  .steps { counter-reset: s; list-style: none; margin: 18px 0 0; padding: 0; }
+  .steps > li { counter-increment: s; position: relative; padding-left: 38px; margin-bottom: 22px; }
+  .steps > li::before {
+    content: counter(s); position: absolute; left: 0; top: 0;
+    width: 24px; height: 24px; display: grid; place-items: center;
+    border-radius: 50%; border: 1px solid var(--rule-2);
+    font-family: var(--mono); font-size: 11.5px; color: var(--accent);
+  }
+  .steps b { display: block; font-size: 15.5px; }
+  .steps p { margin: 3px 0 0; color: var(--ink-2); }
+
+  footer { border-top: 1px solid var(--rule); padding: 26px 0 60px; color: var(--muted); font-size: 13px; }
+</style>
+
+<style>
+  .themer {
+    position: fixed; top: 16px; right: 16px; z-index: 20;
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 7px 12px; border-radius: 999px;
+    background: var(--raised); border: 1px solid var(--rule-2);
+    color: var(--ink-2); font-family: var(--mono); font-size: 11px;
+    letter-spacing: .08em; text-transform: uppercase; cursor: pointer;
+  }
+  .themer:hover { color: var(--accent); border-color: var(--accent); }
+  .themer:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  @media (max-width: 820px) { .themer { position: static; margin: 16px 0 -18px; } }
+  @media print {
+    .themer, nav.toc { display: none !important; }
+    :root {
+      --ground: #fff; --raised: #F3F5FB; --ink: #000; --ink-2: #444;
+      --rule: #D8DEEC; --rule-2: #C4CCE0; --accent: #0040E9; --logo: #0040E9;
+    }
+    body { font-size: 10.5pt; }
+    .cols { display: block; padding: 0; }
+    .mast { padding: 0 0 22px; }
+    .mast h1 { font-size: 26pt; }
+    .logo { height: 30px; }
+    section { page-break-inside: auto; margin-bottom: 26px; }
+    .ep, .fieldset { page-break-inside: avoid; }
+    .ep { border-color: var(--rule-2); }
+    details { display: block; }
+    details > summary { display: none; }
+    pre { white-space: pre-wrap; word-break: break-word; border-color: var(--rule-2); }
+    a { color: inherit; text-decoration: none; }
+  }
+</style>
+</head>
+<body>
+
+<button class="themer" id="themer" type="button" aria-label="Switch colour theme">
+  <span id="themer-label">Theme</span>
+</button>
+
+<div class="shell">
+  <header class="mast">
+    <svg class="logo" aria-label="Elefin" role="img" viewBox="0 0 169 50" fill="none" xmlns="http://www.w3.org/2000/svg"> <g id="Layer_1" clip-path="url(#clip0_35_48)"> <path id="Vector" d="M48.1046 31.2217C47.7489 20.3206 38.9409 13.7103 29.7771 13.7103C19.5461 13.7103 11.7358 22.0086 11.7358 31.922C11.7358 41.8353 19.7628 49.996 29.9938 49.996C37.1703 49.996 43.5616 45.9156 46.6162 39.868L38.303 39.7992C36.4547 41.7665 33.6863 43.3169 29.7771 43.3169C24.2527 43.3169 20.1186 39.9369 19.2966 35.0591H19.2885L19.1372 34.0957C19.0636 34.205 18.9041 30.238 19.1985 28.7605C20.1554 23.9071 24.4571 20.3935 29.9979 20.3935C34.5696 20.3935 38.4502 23.2594 40.139 27.283H40.1472L40.1962 27.4288C40.3434 27.7971 40.4743 28.1695 40.5847 28.5541L43.075 35.6177L47.8961 34.3871C48.0392 33.4723 48.1087 32.4199 48.1087 31.2217H48.1046Z" fill="var(--fill-0, #0040E9)"/> <path id="Vector_2" d="M40.0162 27.0159C39.6155 27.1252 39.2189 27.2385 38.8345 27.368C38.8345 27.368 13.7149 34.0795 0.302532 26.7163C-1.43126 25.7651 4.87419 32.3794 6.42806 33.6018C14.8599 40.2324 34.0461 37.4555 43.0749 35.6218L40.0408 26.9875" fill="var(--fill-0, #0040E9)"/> <path id="Vector_3" d="M52.0098 49.4373V0.210492H58.9695V49.4333H52.0098V49.4373Z" fill="var(--fill-0, #0040E9)"/> <path id="Vector_4" d="M80.92 13.7144C90.0837 13.7144 98.8917 20.3246 99.2475 31.2257C99.2475 32.4199 99.178 33.4764 99.0348 34.3912H70.3373C70.9057 39.5968 75.1665 43.3209 80.92 43.3209C84.8251 43.3209 87.5975 41.7746 89.4458 39.8033L97.759 39.8721C94.7044 45.9197 88.309 50 81.1367 50C70.9057 50 62.8787 41.9122 62.8787 31.926C62.8787 21.9398 70.693 13.7144 80.92 13.7144ZM91.7889 28.7605C90.509 23.9799 86.2481 20.3935 81.1326 20.3935C75.5918 20.3935 71.6131 23.9799 70.3332 28.7605H91.7848H91.7889Z" fill="var(--fill-0, #0040E9)"/> <path id="Vector_5" d="M106.35 20.9561H101.022V14.277H106.493C107.274 5.62662 112.32 0.35217 120.985 0V6.67908C116.863 7.10006 113.739 9.63407 113.457 14.273H120.985V20.9521H113.314V49.4333H106.354V20.9561H106.35Z" fill="var(--fill-0, #0040E9)"/> <path id="Vector_6" d="M124.322 5.20563C124.322 2.81331 126.17 0.987694 128.583 0.987694C130.996 0.987694 132.774 2.81736 132.774 5.20563C132.774 7.59391 130.926 9.42358 128.583 9.42358C126.24 9.42358 124.322 7.59391 124.322 5.20563ZM125.103 14.277H132.063V49.4373H125.103V14.277Z" fill="var(--fill-0, #0040E9)"/> <path id="Vector_7" d="M169 49.4373H162.036V30.9424C162.036 23.7694 158.912 20.3935 153.371 20.3935C147.831 20.3935 144.706 23.7694 144.706 30.9424V49.4373H137.747V30.9424C137.747 19.1265 144.281 13.7144 153.375 13.7144C162.47 13.7144 169.004 19.1305 169.004 30.9424V49.4373H169Z" fill="var(--fill-0, #0040E9)"/> </g> <defs> <clipPath id="clip0_35_48"> <rect width="169" height="50" fill="white"/> </clipPath> </defs> </svg>
+    <span class="eyebrow">Integration guide · v2 · client data</span>
+    <h1>Elefin Client Data API</h1>
+    <p class="stand">Read your referred clients and their trading accounts, balances, open positions and closed trades. Seven endpoints, one credential, JSON throughout.</p>
+    <dl class="facts">
+      <div class="fact"><dt>Base URL</dt><dd>https://el.theloginarea.com/api/v1</dd></div>
+      <div class="fact"><dt>Auth</dt><dd>Bearer {key}.{secret}</dd></div>
+      <div class="fact"><dt>Rate limit</dt><dd>60 req/min</dd></div>
+      <div class="fact"><dt>Format</dt><dd>JSON · UTC · USD</dd></div>
+    </dl>
+  </header>
+
+  <div class="cols">
+    <nav class="toc" aria-label="Contents">
+      <h2>Contents</h2>
+      <ol>
+        <li><a href="#start">Quick start</a></li>
+        <li><a href="#auth">Authentication</a></li>
+        <li><a href="#scope">What your key sees</a></li>
+        <li><a href="#abilities">Abilities</a></li>
+        <li><a href="#conventions">Conventions</a></li>
+        <li><a href="#endpoints">Endpoints</a></li>
+        <li class="sub"><a href="#ep-me">/me</a></li>
+        <li class="sub"><a href="#ep-clients">/clients</a></li>
+        <li class="sub"><a href="#ep-lookup">/clients/lookup</a></li>
+        <li class="sub"><a href="#ep-client">/clients/{id}</a></li>
+        <li class="sub"><a href="#ep-account">/accounts/{login}</a></li>
+        <li class="sub"><a href="#ep-trades">…/trades</a></li>
+        <li class="sub"><a href="#ep-positions">…/positions</a></li>
+        <li><a href="#errors">Errors</a></li>
+      </ol>
+    </nav>
+
+    <main>
+      <!-- ─────────────────────────── QUICK START -->
+      <section id="start">
+        <h2>Quick start</h2>
+        <p class="intro">From zero to your first response in three steps.</p>
+        <ol class="steps">
+          <li>
+            <b>Get your credential</b>
+            <p>Elefin issues it from the CRM. You receive it once, on screen, at the moment the key is created. It is hashed on save and cannot be recovered. Store it the way you store a database password.</p>
+          </li>
+          <li>
+            <b>Call <code>/me</code></b>
+            <p>It needs no permission and confirms the credential works, which key type you hold, and which abilities are on it.</p>
+<pre><code>curl https://el.theloginarea.com/api/v1/me \
+  -H "Authorization: Bearer {key}.{secret}"</code></pre>
+          </li>
+          <li>
+            <b>List your clients</b>
+            <p>Page through with <code>page</code> and <code>per_page</code>. Nothing you pass widens what you can see.</p>
+<pre><code>curl "https://el.theloginarea.com/api/v1/clients?per_page=50&page=1" \
+  -H "Authorization: Bearer {key}.{secret}"</code></pre>
+          </li>
+        </ol>
+      </section>
+
+      <!-- ─────────────────────────── AUTH -->
+      <section id="auth">
+        <h2>Authentication</h2>
+        <p class="intro">Every request carries the credential. There is no login step, no token exchange and no refresh.</p>
+
+        <p>Your credential has two halves joined by a dot: a public key and a secret. Send them together:</p>
+<pre><code>Authorization: Bearer fxcrm_pk_XXXXXXXX.fxcrm_sk_XXXXXXXX</code></pre>
+
+        <p>A header pair is also accepted, for clients that cannot set an Authorization header:</p>
+<pre><code>X-API-Key:    fxcrm_pk_XXXXXXXX
+X-API-Secret: fxcrm_sk_XXXXXXXX</code></pre>
+
+        <div class="note warn">
+          <b>Neither half works alone</b>
+          <p>The public key is an identifier, not a credential. Sending either half by itself returns <code>401</code>. Send the whole dotted string, with no braces or whitespace around it. The <code>{key}.{secret}</code> in the examples is a placeholder, not literal syntax.</p>
+        </div>
+
+        <h3>Handling the credential</h3>
+        <ul class="plain">
+          <li>Keep it server-side. It carries no per-user scoping, so anything holding it can read your whole book.</li>
+          <li>Never ship it in a mobile app, browser bundle or public repository.</li>
+          <li>Lost it? It cannot be recovered. Ask Elefin to regenerate the secret, which invalidates the old one immediately.</li>
+          <li>Keys can carry an expiry date and can be deactivated at any time. Both surface as <code>401</code>, so treat a sudden <code>401</code> on a previously working integration as a key lifecycle event, not a bug in your code.</li>
+        </ul>
+      </section>
+
+      <!-- ─────────────────────────── SCOPE -->
+      <section id="scope">
+        <h2>What your key sees</h2>
+        <p class="intro">A Partner key is bound to one partner: you. That binding is applied on the server, on every endpoint, and cannot be changed after the key is issued.</p>
+
+        <ul class="plain">
+          <li><b>You do not pass a partner id.</b> There is no parameter for it. Scoping is implicit in the credential.</li>
+          <li><b>Every list is already filtered</b> to the clients you referred. <code>meta.total</code> is your count, not the broker's.</li>
+          <li><b>Records outside your book return <code>404</code></b>, identical to records that do not exist. This is deliberate. You cannot use the API to discover whether a client id or MT5 login exists elsewhere in the CRM.</li>
+          <li><b>Only real trading accounts are reported.</b> Demo accounts never appear.</li>
+        </ul>
+
+      </section>
+
+      <!-- ─────────────────────────── ABILITIES -->
+      <section id="abilities">
+        <h2>Abilities</h2>
+        <p class="intro">Your key carries a list of abilities. They decide which endpoints answer you and, in one case, which fields come back. Call <code>/me</code> to see what yours holds.</p>
+
+        <div class="scroller">
+        <table>
+          <thead><tr><th>Ability</th><th>Unlocks</th></tr></thead>
+          <tbody>
+            <tr><td>clients.read</td><td class="wrap"><b>Client list.</b> The six client and account endpoints: <code>/clients</code>, <code>/clients/lookup</code>, <code>/clients/{id}</code>, <code>/accounts/{login}</code>, <code>/accounts/{login}/trades</code>, <code>/accounts/{login}/positions</code></td></tr>
+            <tr><td>clients.pii</td><td class="wrap"><b>Contact details.</b> Unmasks <code>email</code> and <code>phone</code> on client responses. Grants no endpoint of its own.</td></tr>
+          </tbody>
+        </table>
+        </div>
+
+        <div class="note">
+          <b><code>clients.pii</code> is a modifier, not a grant</b>
+          <p>It changes what a response contains; it never opens a route. A key holding <code>clients.pii</code> and nothing else receives <code>403</code> everywhere except <code>/me</code>.</p>
+          <p style="margin-top:8px">It is also <b>granted only on purpose</b>. Where a key created with nothing selected receives every other ability, this one is withheld unless someone ticked it by name.</p>
+        </div>
+
+        <p style="margin-top:20px">Without <code>clients.pii</code>, <code>email</code> and <code>phone</code> are returned masked rather than removed. The keys are always present. Do not parse the masked form or use it as an identifier; treat it as display text only. Every other field, including <code>name</code> and <code>country</code>, is returned regardless.</p>
+      </section>
+
+      <!-- ─────────────────────────── CONVENTIONS -->
+      <section id="conventions">
+        <h2>Conventions</h2>
+        <p class="intro">True of every endpoint. Build these into your client once and stop thinking about them.</p>
+
+        <h3>Response envelope</h3>
+        <p>Every response, success or failure, is wrapped the same way.</p>
+<pre><code>{ "success": true, "message": "Success", "data": { … } }</code></pre>
+        <p>List endpoints nest a paginator inside <code>data</code>. Note the double nesting: <code>data.data</code> holds the rows.</p>
+<pre><code>{
+  "success": true,
+  "message": "Success",
+  "data": {
+    "data": [ … ],
+    "meta": { "current_page": 1, "per_page": 50, "last_page": 7936, "total": 39679 }
+  }
+}</code></pre>
+
+        <h3>Pagination</h3>
+        <div class="scroller">
+        <table>
+          <thead><tr><th>Param</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td>per_page</td><td class="wrap">1–200. Default 50. <code>limit</code> is accepted as an alias on some endpoints.</td></tr>
+            <tr><td>page</td><td class="wrap">From 1. Past <code>last_page</code> you get an empty <code>data</code> array, not an error.</td></tr>
+          </tbody>
+        </table>
+        </div>
+
+        <h3>Units and formats</h3>
+        <ul class="plain">
+          <li><b>Money</b> is USD. Where a payment was taken in another currency, the row also carries <code>paid_amount</code>, <code>paid_currency</code> and <code>exchange_rate</code>.</li>
+          <li><b>Timestamps</b> are UTC, ISO-8601, with a trailing <code>Z</code>, for example <code>2026-01-15T09:00:00Z</code>. Date-only filters take <code>YYYY-MM-DD</code>.</li>
+          <li><b>Volume</b> is in lots.</li>
+          <li><b>MT5 logins</b> are strings, not integers. They exceed 32-bit range and have leading-digit significance, so do not cast them.</li>
+          <li><b>Money fields</b> arrive as JSON numbers. Use a decimal type on your side; do not accumulate in binary floats.</li>
+        </ul>
+
+        <h3>Rate limiting</h3>
+        <p>60 requests per minute per key. Every response carries <code>X-RateLimit-Limit</code> and <code>X-RateLimit-Remaining</code>. Exceed it and you get <code>429</code> with a <code>Retry-After</code> header in seconds. Wait that long rather than retrying immediately. For bulk syncs, one request every 1.1 seconds keeps you comfortably inside the limit.</p>
+      </section>
+
+      <!-- ─────────────────────────── ENDPOINTS -->
+      <section id="endpoints">
+        <h2>Endpoints</h2>
+        <p class="intro">All seven are <code>GET</code>. The API is read-only. There is nothing you can create, change or delete through it.</p>
+        <div class="note">
+          <b>Your key decides which fields come back</b>
+          <p>Field access is set per key when it is issued, so two keys can call the same endpoint and receive different shapes. Withheld fields are absent from the response entirely rather than returned empty, so read a missing key as withheld, not as null. Call an endpoint once to see exactly what yours returns, and ask your Elefin contact if something you need is not there.</p>
+        </div>
+
+        <!-- /me -->
+        <article class="ep" id="ep-me">
+          <div class="ep-head"><span class="verb">GET</span><span class="path">/me</span><span class="need none">no ability</span></div>
+          <p class="lede">Who you are, what your key can do, and how far back the data goes. Call this first, and on startup. It is the cheapest way to confirm a credential still works.</p>
+          <details>
+            <summary>Example response</summary>
+<pre><code>{
+  "success": true,
+  "message": "Success",
+  "data": {
+    "key": {
+      "name": "Test integration",
+      "abilities": ["clients.read", "clients.pii"],
+      "rate_limit_per_minute": 60,
+      "expires_at": null
+    },
+    "scope": { "type": "partner", "partner": { "id": 1, "name": "Test Partner" } },
+    "totals": { "clients": 100 },
+    "data_availability": {
+      "transactions_from": "2026-01-01T00:00:00Z",
+      "trades_from": "2026-01-01T00:00:00Z"
+    },
+    "conventions": { "currency": "USD", "timezone": "UTC", "volume_unit": "lots" }
+  }
+}</code></pre>
+          </details>
+        </article>
+
+        <!-- /clients -->
+        <article class="ep" id="ep-clients">
+          <div class="ep-head"><span class="verb">GET</span><span class="path">/clients</span><span class="need">clients.read</span></div>
+          <p class="lede">Your referred clients, each with funding, account and trading totals already aggregated. This is the endpoint most integrations are built on.</p>
+          <div class="scroller">
+          <table>
+            <thead><tr><th>Param</th><th>Notes</th></tr></thead>
+            <tbody>
+              <tr><td>per_page</td><td class="wrap">1–200, default 50. <code>limit</code> accepted as an alias.</td></tr>
+              <tr><td>page</td><td class="wrap">From 1.</td></tr>
+              <tr><td>email</td><td class="wrap">Restrict to one client by registered email address.</td></tr>
+              <tr><td>sort</td><td class="wrap"><code>registered_at</code> (default), <code>client_id</code>, <code>name</code>.</td></tr>
+              <tr><td>direction</td><td class="wrap"><code>asc</code> or <code>desc</code>. Default <code>desc</code>.</td></tr>
+              <tr><td>registered_from</td><td class="wrap">On or after this date, <code>YYYY-MM-DD</code>.</td></tr>
+              <tr><td>registered_to</td><td class="wrap">On or before this date.</td></tr>
+              <tr><td>country</td><td class="wrap">Exact country name, e.g. <code>India</code>.</td></tr>
+              <tr><td>status</td><td class="wrap"><code>active</code>, <code>suspended</code>, <code>inactive</code>.</td></tr>
+              <tr><td>funded_only</td><td class="wrap"><code>1</code> to return only clients with a successful deposit.</td></tr>
+            </tbody>
+          </table>
+          </div>
+        </article>
+
+        <!-- /clients/lookup -->
+        <article class="ep" id="ep-lookup">
+          <div class="ep-head"><span class="verb">GET</span><span class="path">/clients/lookup</span><span class="need">clients.read</span></div>
+          <p class="lede">Answer one question, &ldquo;is this email address one of my clients?&rdquo;, without paging the roster. Built for signup checks and support tools.</p>
+          <div class="scroller">
+          <table>
+            <thead><tr><th>Param</th><th>Notes</th></tr></thead>
+            <tbody><tr><td>email</td><td class="wrap">The client's registered email address. Required.</td></tr></tbody>
+          </table>
+          </div>
+          <p style="margin-top:16px">If the address is not one of yours, you get <code>affiliated: false</code> and nothing else. You get that same answer whether or not that person exists in the CRM at all. You cannot use this to test whether an address is registered with Elefin.</p>
+          <p>The response echoes the address you submitted even without <code>clients.pii</code>, since it discloses nothing you did not already have.</p>
+        </article>
+
+        <!-- /clients/{id} -->
+        <article class="ep" id="ep-client">
+          <div class="ep-head"><span class="verb">GET</span><span class="path">/clients/{id}</span><span class="need">clients.read</span></div>
+          <p class="lede">One client, plus a per-account breakdown under <code>accounts.items</code>. Use this for a detail view; use <code>/clients</code> for lists.</p>
+          <p style="margin-top:14px">Everything in a <code>/clients</code> row, and additionally:</p>
+          <div class="scroller">
+          <table>
+            <thead><tr><th>Field</th><th>Notes</th></tr></thead>
+            <tbody>
+              <tr><td>accounts.logins[]</td><td class="wrap">Every MT5 login on the client. Same values as <code>accounts.items[].login</code>.</td></tr>
+              <tr><td>accounts.items[]</td><td class="wrap">One object per account: <code>login</code>, <code>affiliated</code>, <code>account_type</code>, <code>platform_group</code>, <code>currency</code>, <code>opened_at</code>, <code>balance</code>, <code>equity</code>, <code>credit</code>, <code>margin</code>, <code>free_margin</code>, <code>leverage</code>, <code>trading_enabled</code>, <code>total_deposit</code>, <code>total_withdrawal</code>, <code>net_deposit</code>, <code>lots</code>, <code>trades</code>, <code>net_profit</code>, <code>last_trade_at</code>, <code>commission</code>, <code>updated_at</code></td></tr>
+              <tr><td>commission_earned</td><td class="wrap">Commission attributable to this client.</td></tr>
+            </tbody>
+          </table>
+          </div>
+          <p style="margin-top:16px">A client id outside your book returns <code>404</code>, indistinguishable from one that does not exist.</p>
+        </article>
+
+        <!-- /accounts/{login} -->
+        <article class="ep" id="ep-account">
+          <div class="ep-head"><span class="verb">GET</span><span class="path">/accounts/{login}</span><span class="need">clients.read</span></div>
+          <p class="lede">Confirm an MT5 login belongs to you, and read its balance, lifetime deposits, traded lots, last trade and commission. It carries <code>client_id</code>, so an account can always be traced back to the client who owns it.</p>
+          <p style="margin-top:14px">A login that is not yours, or does not exist, returns <code>affiliated: false</code>. Same answer for both, by design.</p>
+        </article>
+
+        <!-- /accounts/{login}/trades -->
+        <article class="ep" id="ep-trades">
+          <div class="ep-head"><span class="verb">GET</span><span class="path">/accounts/{login}/trades</span><span class="need">clients.read</span></div>
+          <p class="lede">Closed positions on one account, newest first, already aggregated from raw MT5 deals into one row per position with a stable <code>trade_ticket_id</code>.</p>
+          <div class="scroller">
+          <table>
+            <thead><tr><th>Param</th><th>Notes</th></tr></thead>
+            <tbody>
+              <tr><td>limit</td><td class="wrap">1–200, default 50. <code>per_page</code> accepted as an alias.</td></tr>
+              <tr><td>page</td><td class="wrap">From 1.</td></tr>
+              <tr><td>from</td><td class="wrap">Closed on or after this timestamp.</td></tr>
+              <tr><td>to</td><td class="wrap">Closed on or before this timestamp.</td></tr>
+              <tr><td>symbol</td><td class="wrap">One instrument, e.g. <code>XAUUSD</code>.</td></tr>
+            </tbody>
+          </table>
+          </div>
+          <p style="margin-top:16px">A login outside your scope returns <code>403</code> with <code>unaffiliated</code>, rather than the <code>404</code> used elsewhere. Handle both.</p>
+        </article>
+
+        <!-- /accounts/{login}/positions -->
+        <article class="ep" id="ep-positions">
+          <div class="ep-head"><span class="verb">GET</span><span class="path">/accounts/{login}/positions</span><span class="need">clients.read</span></div>
+          <p class="lede">One row per position currently open, marked to the latest sync. A trade only reaches <code>/trades</code> once the position is fully out, so this is the endpoint that makes a mid-trade or partially-closed account visible.</p>
+          <p style="margin-top:14px"><code>trade_ticket_id</code> matches the closed-trade row the position will become, so you can follow one position from open to close across both endpoints.</p>
+          <div class="note warn" style="margin-top:18px">
+            <b>Read <code>as_of</code> before trusting an empty list</b>
+            <p>Positions are served from a snapshot the platform sync refreshes each minute, not from MT5 inside your request. An account with nothing open and a sync that has stopped both return an empty list. A stale or <code>null</code> <code>as_of</code> means <em>unknown</em>, not <em>flat</em>.</p>
+          </div>
+          <p style="margin-top:16px">A login outside your scope returns <code>403</code> with <code>unaffiliated</code>.</p>
+        </article>
+
+                      </section>
+
+      <!-- ─────────────────────────── ERRORS -->
+      <section id="errors">
+        <h2>Errors</h2>
+        <p class="intro">Failures use the same envelope, with <code>success: false</code> and a human-readable <code>message</code>.</p>
+<pre><code>{ "success": false, "message": "This API key does not have the 'clients.read' permission." }</code></pre>
+        <div class="scroller">
+        <table>
+          <thead><tr><th>Code</th><th>Meaning</th><th>What to do</th></tr></thead>
+          <tbody>
+            <tr><td>401</td><td class="wrap">Missing, malformed, inactive or expired credential.</td><td class="wrap">Check the dotted format first. If it was working yesterday, the key was deactivated or its secret regenerated. Ask Elefin.</td></tr>
+            <tr><td>403</td><td class="wrap">Your key lacks the ability for this endpoint, or its partner no longer exists.</td><td class="wrap">Not retryable. The message names the missing ability. Compare against <code>/me</code>.</td></tr>
+            <tr><td>404</td><td class="wrap">The record does not exist, or is outside your scope. The two are deliberately indistinguishable.</td><td class="wrap">Do not interpret as "deleted". Treat as "not mine".</td></tr>
+            <tr><td>429</td><td class="wrap">Rate limit exceeded.</td><td class="wrap">Sleep for <code>Retry-After</code> seconds, then retry. Do not retry immediately.</td></tr>
+          </tbody>
+        </table>
+        </div>
+        <div class="note">
+          <b>Retry only 429 and 5xx</b>
+          <p><code>401</code>, <code>403</code> and <code>404</code> are terminal. Retrying produces the same answer and burns your rate limit. Back off exponentially on <code>5xx</code>.</p>
+        </div>
+      </section>
+
+      <footer>
+        Elefin Client Data API · document v2 · read-only · <code>https://el.theloginarea.com/api/v1</code><br>
+        Questions about a key, its abilities or its expiry go to your Elefin contact. None of it is self-service.
+      </footer>
+    </main>
+  </div>
+</div>
+
+<script>
+  (function () {
+    var root = document.documentElement, btn = document.getElementById("themer"),
+        label = document.getElementById("themer-label"), order = ["system", "light", "dark"];
+    function media() { return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"; }
+    function read() { try { return localStorage.getItem("elefin-docs-theme") || "system"; } catch (e) { return "system"; } }
+    function apply(mode) {
+      if (mode === "system") root.removeAttribute("data-theme");
+      else root.setAttribute("data-theme", mode);
+      label.textContent = mode === "system" ? "Auto \u00b7 " + media() : mode;
+      try { localStorage.setItem("elefin-docs-theme", mode); } catch (e) {}
+    }
+    apply(read());
+    btn.addEventListener("click", function () { apply(order[(order.indexOf(read()) + 1) % order.length]); });
+    window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", function () {
+      if (read() === "system") apply("system");
+    });
+  })();
+</script>
+
+</body>
+</html>

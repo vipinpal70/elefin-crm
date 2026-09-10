@@ -1,0 +1,192 @@
+@import "tailwindcss";
+
+/*
+ * Elefin Partner CRM — light, airy theme: near-white surfaces, hairline borders,
+ * soft gray shadows, and faint tints of lavender / yellow / gray.
+ *
+ *   ground  — the page          (off-white, a whisper of lavender)
+ *   raised  — cards, bars        (pure white, lifted by a soft gray shadow)
+ *   sunken  — hovers, chips      (light lavender-gray)
+ *   butter  — note callouts      (light yellow)
+ *   accent-bg — active / selected (light purple)
+ *
+ * Identity accent is the brand indigo #5645E7. Categorical chart ramp
+ * (--chart-1..8) is the dataviz reference set, validated light + dark.
+ */
+@theme inline {
+  --color-brand: var(--brand);
+  --color-ground: var(--ground);
+  --color-raised: var(--raised);
+  --color-sunken: var(--sunken);
+  --color-butter: var(--butter);
+  --color-butter-line: var(--butter-line);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-muted: var(--muted);
+  --color-rule: var(--rule);
+  --color-rule-2: var(--rule-2);
+  --color-accent: var(--accent);
+  --color-accent-solid: var(--accent-solid);
+  --color-accent-bg: var(--accent-bg);
+  --color-navy: var(--navy);
+  --color-plum: var(--plum);
+  --color-ok: var(--ok);
+  --color-ok-bg: var(--ok-bg);
+  --color-err: var(--err);
+  --color-err-bg: var(--err-bg);
+
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-chart-6: var(--chart-6);
+  --color-chart-7: var(--chart-7);
+  --color-chart-8: var(--chart-8);
+
+  /* soft gray elevation — subtle, ~5–6% */
+  --shadow-card: 0 1px 2px rgba(17, 17, 26, 0.04),
+    0 2px 10px -2px rgba(17, 17, 26, 0.06);
+  --shadow-pop: 0 4px 16px -2px rgba(17, 17, 26, 0.1),
+    0 2px 6px -2px rgba(17, 17, 26, 0.06);
+
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+:root {
+  --brand: #4c3bd4;
+  --ground: #f6f5fb;
+  --raised: #ffffff;
+  --sunken: #edecf5;
+  --butter: #fdf9e9;
+  --butter-line: #f0e7c6;
+  --ink: #1a1a24;
+  --ink-2: #575765;
+  --muted: #8b8b99;
+  --rule: #eae9f1;
+  --rule-2: #dcdae5;
+  --accent: #4c3bd4;
+  --accent-solid: #5645e7;
+  --accent-bg: #ebe8fb;
+  --navy: #2f5793;
+  --plum: #6b3f83;
+  --ok: #12805b;
+  --ok-bg: #e6f4ee;
+  --err: #c4362f;
+  --err-bg: #fbe9e7;
+
+  --chart-1: #2a78d6;
+  --chart-2: #eb6834;
+  --chart-3: #1baf7a;
+  --chart-4: #eda100;
+  --chart-5: #e87ba4;
+  --chart-6: #008300;
+  --chart-7: #4a3aa7;
+  --chart-8: #e34948;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground: #0d0d10;
+    --raised: #16161a;
+    --sunken: #1e1e25;
+    --butter: #24220f;
+    --butter-line: #433f1d;
+    --ink: #f3f3f6;
+    --ink-2: #a9a9b6;
+    --muted: #757581;
+    --rule: #26262d;
+    --rule-2: #35353f;
+    --accent: #a89dff;
+    --accent-solid: #6f5ef0;
+    --accent-bg: #221c40;
+    --navy: #7fa8e0;
+    --plum: #b98fd0;
+    --ok: #4fc79b;
+    --ok-bg: #10261d;
+    --err: #ed7f76;
+    --err-bg: #2c1512;
+
+    --chart-1: #3987e5;
+    --chart-2: #d95926;
+    --chart-3: #199e70;
+    --chart-4: #c98500;
+    --chart-5: #d55181;
+    --chart-6: #008300;
+    --chart-7: #9085e9;
+    --chart-8: #e66767;
+  }
+}
+
+:root[data-theme="dark"] {
+  --ground: #0d0d10;
+  --raised: #16161a;
+  --sunken: #1e1e25;
+  --butter: #24220f;
+  --butter-line: #433f1d;
+  --ink: #f3f3f6;
+  --ink-2: #a9a9b6;
+  --muted: #757581;
+  --rule: #26262d;
+  --rule-2: #35353f;
+  --accent: #a89dff;
+  --accent-solid: #6f5ef0;
+  --accent-bg: #221c40;
+  --navy: #7fa8e0;
+  --plum: #b98fd0;
+  --ok: #4fc79b;
+  --ok-bg: #10261d;
+  --err: #ed7f76;
+  --err-bg: #2c1512;
+
+  --chart-1: #3987e5;
+  --chart-2: #d95926;
+  --chart-3: #199e70;
+  --chart-4: #c98500;
+  --chart-5: #d55181;
+  --chart-6: #008300;
+  --chart-7: #9085e9;
+  --chart-8: #e66767;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/*
+ * Root size drives every rem-based spacing/type token. 13.5px is tuned for a
+ * ~1440–1512px 14" laptop; roomier displays step back up.
+ */
+html {
+  scroll-behavior: smooth;
+  font-size: 13.5px;
+}
+@media (min-width: 1600px) {
+  html {
+    font-size: 14.5px;
+  }
+}
+@media (min-width: 1900px) {
+  html {
+    font-size: 16px;
+  }
+}
+
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 0.9259rem; /* 12.5px @13.5 root */
+  line-height: 1.5;
+  letter-spacing: -0.006em;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: var(--accent-bg);
+  color: var(--ink);
+}

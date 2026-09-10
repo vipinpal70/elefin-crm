@@ -1,0 +1,46 @@
+{
+  "name": "elefin-crm",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Back-office CRM dashboard for an Elefin introducing-broker / referral partner",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "engines": {
+    "node": ">=20.9.0"
+  },
+  "scripts": {
+    "dev": "npm run dev --workspace @elefin/web",
+    "dev:worker": "npm run dev --workspace @elefin/worker",
+    "build": "npm run build --workspace @elefin/web",
+    "start": "npm run start --workspace @elefin/web",
+    "lint": "npm run lint --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "db:up": "docker compose up -d mongo",
+    "db:down": "docker compose down",
+    "db:migrate": "npm run migrate --workspace @elefin/db",
+    "db:seed": "npm run seed --workspace @elefin/web",
+    "import:xlsx": "tsx scripts/import-xlsx.mts",
+    "backfill:snapshots": "tsx scripts/backfill-snapshots.mts",
+    "probe:api": "tsx scripts/probe-api.mts",
+    "format": "prettier --write .",
+    "set:password": "tsx scripts/set-password.mts",
+    "test": "npm run test --workspaces --if-present",
+    "pm2:start": "mkdir -p logs && npm run build && pm2 start ecosystem.config.cjs",
+    "pm2:restart": "npm run build && pm2 restart ecosystem.config.cjs --update-env",
+    "pm2:reload": "pm2 reload ecosystem.config.cjs --update-env",
+    "pm2:stop": "pm2 stop ecosystem.config.cjs",
+    "pm2:delete": "pm2 delete ecosystem.config.cjs",
+    "pm2:logs": "pm2 logs",
+    "pm2:status": "pm2 status"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "dotenv": "^16.4.7",
+    "pm2": "^5.4.3",
+    "prettier": "^3.4.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  }
+}
