@@ -39,11 +39,11 @@ module.exports = {
       name: "elefin-web",
       cwd: path.join(root, "apps/web"),
       script: "npm",
-      args: "run start", // -> next start -p 3000
+      args: "run start", // -> next start -p 4004
       max_memory_restart: "600M",
       restart_delay: 3000,
       kill_timeout: 10000,
-      env: { ...common.env, PORT: "3000" },
+      env: { ...common.env, PORT: "4004" },
       out_file: path.join(logs, "web.out.log"),
       error_file: path.join(logs, "web.err.log"),
     },

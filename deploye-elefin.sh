@@ -7,7 +7,7 @@
 #  Does   :
 #    1. installs Node 22, git, nginx, redis-server, certbot, PM2
 #    2. clones / updates  https://github.com/vipinpal70/elefin-crm.git @ master
-#       into  /home/ubuntu/elefin   (override with APP_DIR=...)
+#       into  /root/elefin-crm   (override with APP_DIR=...)
 #    3. validates .env (never writes secrets — you fill it in once), sets
 #       NODE_ENV=production and REDIS_URL
 #    4. npm ci  ->  db:migrate  ->  db:seed  ->  build
@@ -29,8 +29,8 @@
 #    APP_DIR=$(pwd) CERTBOT_EMAIL=you@example.com ./deploye-elefin.sh
 #
 #  Common overrides (env vars):
-#    DOMAIN=elefin.tradecartel.in   APP_DIR=/home/ubuntu/elefin
-#    BRANCH=master                  NODE_MAJOR=22        WEB_PORT=3000
+#    DOMAIN=elefin.tradecartel.in   APP_DIR=/root/elefin-crm
+#    BRANCH=master                  NODE_MAJOR=22        WEB_PORT=4004
 #    CERTBOT_EMAIL=you@example.com  (recommended — expiry notices)
 #    RUN_SEED=true                  ENABLE_UFW=true
 #    SKIP_SSL=false                 FORCE_SSL=false  (attempt cert even if DNS
@@ -42,9 +42,9 @@ set -Eeuo pipefail
 DOMAIN="${DOMAIN:-elefin.tradecartel.in}"
 REPO_URL="${REPO_URL:-https://github.com/vipinpal70/elefin-crm.git}"
 BRANCH="${BRANCH:-master}"
-APP_DIR="${APP_DIR:-/home/ubuntu/elefin}"
+APP_DIR="${APP_DIR:-/root/elefin-crm}"
 NODE_MAJOR="${NODE_MAJOR:-22}"
-WEB_PORT="${WEB_PORT:-3000}"
+WEB_PORT="${WEB_PORT:-4004}"
 CERTBOT_EMAIL="${CERTBOT_EMAIL:-}"
 RUN_SEED="${RUN_SEED:-true}"
 ENABLE_UFW="${ENABLE_UFW:-true}"

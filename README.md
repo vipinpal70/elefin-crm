@@ -42,11 +42,11 @@ npm run db:migrate           # collections + indexes
 npm run db:seed              # create the first owner from SEED_OWNER_*
 
 # 4. run
-npm run dev                  # web on http://localhost:3000
+npm run dev                  # web on http://localhost:4004
 npm run dev:worker           # sync worker (runs /me on boot)
 ```
 
-Health check: `curl localhost:3000/api/health` → `{ ok, db, cache }`.
+Health check: `curl localhost:4004/api/health` → `{ ok, db, cache }`.
 Run one worker job by hand: `npm run job --workspace @elefin/worker -- me`.
 
 ### Caching (Redis)
@@ -66,7 +66,7 @@ after a write, so pages refresh within a request of the data changing. TTLs
 
 ## Production (PM2)
 
-`ecosystem.config.cjs` runs the web app (`next start -p 3000`) and the sync
+`ecosystem.config.cjs` runs the web app (`next start -p 4004`) and the sync
 worker as two long-lived services under [PM2](https://pm2.keymetrics.io/).
 
 ```bash
