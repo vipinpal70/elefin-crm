@@ -2,11 +2,11 @@
 # =============================================================================
 #  deploye-elefin.sh  —  one-shot deploy for the Elefin Partner CRM
 # =============================================================================
-#  Target : Ubuntu 22.04 / 24.04 server (AWS EC2 "ubuntu" user, or any sudoer)
+#  Target : Ubuntu / Debian server. Run as root, or as any sudo-capable user.
 #  Does   :
 #    1. installs Node 22, git, nginx, redis-server, certbot, PM2
 #    2. clones / updates  https://github.com/vipinpal70/elefin-crm.git @ master
-#       into  /home/ubuntu/elefin
+#       into  /home/ubuntu/elefin   (override with APP_DIR=...)
 #    3. validates .env (never writes secrets — you fill it in once), sets
 #       NODE_ENV=production and REDIS_URL
 #    4. npm ci  ->  db:migrate  ->  db:seed  ->  build
@@ -23,6 +23,9 @@
 #  Usage:
 #    chmod +x deploye-elefin.sh
 #    CERTBOT_EMAIL=you@example.com ./deploye-elefin.sh
+#
+#  Re-use an existing checkout instead of a fresh clone:
+#    APP_DIR=$(pwd) CERTBOT_EMAIL=you@example.com ./deploye-elefin.sh
 #
 #  Common overrides (env vars):
 #    DOMAIN=elefin.tradecartel.in   APP_DIR=/home/ubuntu/elefin
@@ -75,18 +78,26 @@ set_env() {
 
 # ---------------------------------------------------------------- preflight ----
 step "Preflight"
-[ "$(id -u)" -ne 0 ] || die "run this as the 'ubuntu' user (a sudoer), not root: ./deploye-elefin.sh"
-have sudo   || die "sudo is required"
-sudo -v     || die "this user needs sudo privileges"
-if ! have curl; then sudo apt-get update -qq && sudo apt-get install -y -qq curl; fi
-RUN_USER="$(id -un)"; RUN_HOME="$HOME"
+if [ "$(id -u)" -eq 0 ]; then
+  SUDO=""            # already root — run system commands directly
+  RUN_USER="root"
+  RUN_HOME="/root"
+  warn "running as root — fine for a dedicated VPS (a non-root sudo user is tidier, not required)"
+else
+  SUDO="sudo"
+  have sudo || die "sudo not found — install it, or run this script as root"
+  sudo -v  || die "this user lacks sudo privileges — add it to sudoers, or run as root"
+  RUN_USER="$(id -un)"
+  RUN_HOME="$HOME"
+fi
+if ! have curl; then $SUDO apt-get update -qq && $SUDO apt-get install -y -qq curl; fi
 ok "user=${RUN_USER}  domain=${DOMAIN}  dir=${APP_DIR}  branch=${BRANCH}"
 
 # ---------------------------------------------------------------- packages -----
 step "System packages (git, nginx, redis, certbot, ufw, build tools)"
 export DEBIAN_FRONTEND=noninteractive
-sudo apt-get update -qq
-sudo apt-get install -y -qq \
+$SUDO apt-get update -qq
+$SUDO apt-get install -y -qq \
   ca-certificates curl gnupg git build-essential \
   ufw nginx redis-server certbot python3-certbot-nginx dnsutils
 ok "base packages installed"
@@ -98,26 +109,29 @@ if have node; then
   [ "${cur:-0}" -ge 20 ] && { NODE_OK=true; ok "node $(node -v) already present"; }
 fi
 if [ "$NODE_OK" != true ]; then
-  curl -fsSL "https://deb.nodesource.com/setup_${NODE_MAJOR}.x" | sudo -E bash -
-  sudo apt-get install -y -qq nodejs
+  curl -fsSL "https://deb.nodesource.com/setup_${NODE_MAJOR}.x" -o /tmp/nodesource_setup.sh
+  $SUDO bash /tmp/nodesource_setup.sh
+  rm -f /tmp/nodesource_setup.sh
+  $SUDO apt-get install -y -qq nodejs
   ok "installed node $(node -v)"
 fi
 
 step "PM2 (global)"
 if have pm2; then ok "pm2 $(pm2 -v) already present"
-else sudo npm install -g --silent pm2 && ok "installed pm2 $(pm2 -v)"; fi
+else $SUDO npm install -g --silent pm2 && ok "installed pm2 $(pm2 -v)"; fi
 
 # ---------------------------------------------------------------- redis --------
 step "Redis"
-sudo systemctl enable --now redis-server
+$SUDO systemctl enable --now redis-server
 if redis-cli ping 2>/dev/null | grep -q PONG; then ok "redis-server up (redis://127.0.0.1:6379)"
-else warn "redis-cli ping did not return PONG — check 'sudo systemctl status redis-server'"; fi
+else warn "redis-cli ping did not return PONG — check 'systemctl status redis-server'"; fi
 
 # ---------------------------------------------------------------- code ---------
 step "Fetch source into ${APP_DIR}"
-sudo mkdir -p "$(dirname "$APP_DIR")"
-sudo chown "${RUN_USER}:${RUN_USER}" "$(dirname "$APP_DIR")"
+$SUDO mkdir -p "$(dirname "$APP_DIR")"
+$SUDO chown "${RUN_USER}:${RUN_USER}" "$(dirname "$APP_DIR")"
 if [ -d "${APP_DIR}/.git" ]; then
+  git config --global --add safe.directory "$APP_DIR" 2>/dev/null || true
   git -C "$APP_DIR" remote set-url origin "$REPO_URL"
   git -C "$APP_DIR" fetch --all --prune
   git -C "$APP_DIR" checkout "$BRANCH"
@@ -187,9 +201,15 @@ pm2 delete ecosystem.config.cjs >/dev/null 2>&1 || true
 pm2 start ecosystem.config.cjs --update-env
 pm2 save
 
-# reboot persistence — 'pm2 startup' prints a sudo command; run it
-STARTUP_CMD="$(pm2 startup systemd -u "$RUN_USER" --hp "$RUN_HOME" 2>/dev/null | grep -E '^sudo ' || true)"
-if [ -n "$STARTUP_CMD" ]; then eval "$STARTUP_CMD" && ok "pm2 systemd unit installed"; else ok "pm2 startup already configured"; fi
+# reboot persistence
+step "PM2 boot persistence (systemd)"
+if [ -z "$SUDO" ]; then
+  pm2 startup systemd -u root --hp /root >/dev/null 2>&1 || true
+  ok "pm2 systemd unit installed (root)"
+else
+  STARTUP_CMD="$(pm2 startup systemd -u "$RUN_USER" --hp "$RUN_HOME" 2>/dev/null | grep -E '^sudo ' || true)"
+  if [ -n "$STARTUP_CMD" ]; then eval "$STARTUP_CMD" && ok "pm2 systemd unit installed"; else ok "pm2 startup already configured"; fi
+fi
 pm2 save
 pm2 status || true
 
@@ -234,42 +254,42 @@ server {
     }
 }
 EOF
-sudo install -m 0644 "$tmp_site" "$NGINX_SITE"
+$SUDO install -m 0644 "$tmp_site" "$NGINX_SITE"
 rm -f "$tmp_site"
-sudo ln -sfn "$NGINX_SITE" "$NGINX_LINK"
-sudo rm -f /etc/nginx/sites-enabled/default
-sudo nginx -t
-sudo systemctl reload nginx
+$SUDO ln -sfn "$NGINX_SITE" "$NGINX_LINK"
+$SUDO rm -f /etc/nginx/sites-enabled/default
+$SUDO nginx -t
+$SUDO systemctl reload nginx
 ok "vhost enabled and nginx reloaded"
 
 # ---------------------------------------------------------------- firewall -----
 step "Firewall (ufw)"
-sudo ufw allow OpenSSH        >/dev/null 2>&1 || sudo ufw allow 22/tcp >/dev/null 2>&1 || true
-sudo ufw allow 'Nginx Full'   >/dev/null 2>&1 || true
-if [ "$ENABLE_UFW" = true ] && ! sudo ufw status | grep -q "Status: active"; then
-  sudo ufw --force enable
+$SUDO ufw allow OpenSSH        >/dev/null 2>&1 || $SUDO ufw allow 22/tcp >/dev/null 2>&1 || true
+$SUDO ufw allow 'Nginx Full'   >/dev/null 2>&1 || true
+if [ "$ENABLE_UFW" = true ] && ! $SUDO ufw status | grep -q "Status: active"; then
+  $SUDO ufw --force enable
 fi
-sudo ufw status verbose || true
+$SUDO ufw status verbose || true
 ok "HTTP/HTTPS allowed through ufw"
 
 # ---------------------------------------------------------------- ssl ----------
 step "SSL certificate (Let's Encrypt via certbot --nginx)"
 if [ "$SKIP_SSL" = true ]; then
-  warn "SKIP_SSL=true — skipping certbot. Run later: sudo certbot --nginx -d ${DOMAIN} --redirect"
+  warn "SKIP_SSL=true — skipping certbot. Run later: certbot --nginx -d ${DOMAIN} --redirect"
 else
   resolved_ip="$(getent ahostsv4 "$DOMAIN" | awk '{print $1; exit}' || true)"
   public_ip="$(curl -fsS4 https://api.ipify.org 2>/dev/null || curl -fsS4 https://ifconfig.me 2>/dev/null || true)"
   if [ -n "$resolved_ip" ] && [ -n "$public_ip" ] && [ "$resolved_ip" != "$public_ip" ] && [ "$FORCE_SSL" != true ]; then
     warn "${DOMAIN} resolves to ${resolved_ip} but this host is ${public_ip}."
     warn "DNS is not pointing here yet — skipping certbot to avoid a failed challenge."
-    warn "Point the A record at ${public_ip}, then run:  sudo certbot --nginx -d ${DOMAIN} --redirect"
+    warn "Point the A record at ${public_ip}, then run:  certbot --nginx -d ${DOMAIN} --redirect"
   else
     email_flag=(--register-unsafely-without-email)
     [ -n "$CERTBOT_EMAIL" ] && email_flag=(-m "$CERTBOT_EMAIL")
     [ -n "$CERTBOT_EMAIL" ] || warn "no CERTBOT_EMAIL set — registering without one (no expiry reminders)"
-    sudo certbot --nginx -d "$DOMAIN" --non-interactive --agree-tos --redirect "${email_flag[@]}"
-    sudo nginx -t && sudo systemctl reload nginx
-    sudo systemctl list-timers 'certbot*' --no-pager 2>/dev/null | grep -q certbot \
+    $SUDO certbot --nginx -d "$DOMAIN" --non-interactive --agree-tos --redirect "${email_flag[@]}"
+    $SUDO nginx -t && $SUDO systemctl reload nginx
+    $SUDO systemctl list-timers 'certbot*' --no-pager 2>/dev/null | grep -q certbot \
       && ok "auto-renew timer active (certbot.timer)" \
       || warn "certbot renew timer not found — check 'systemctl status certbot.timer'"
   fi
@@ -294,7 +314,7 @@ ${c_green}======================================================================
    Services     : pm2 status   |   pm2 logs elefin-web   |   pm2 logs elefin-worker
    Redeploy     : re-run ./deploye-elefin.sh  (pulls latest ${BRANCH}, rebuilds, restarts)
    Nginx vhost  : ${NGINX_SITE}
-   Renew cert   : automatic (certbot.timer) — test with: sudo certbot renew --dry-run
+   Renew cert   : automatic (certbot.timer) — test with: certbot renew --dry-run
 
  Redis   : installed, running, REDIS_URL set. The web app uses it as a
            read-through cache (@elefin/cache) for dashboards / lists /
