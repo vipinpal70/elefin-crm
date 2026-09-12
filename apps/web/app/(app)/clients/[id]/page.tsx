@@ -7,13 +7,21 @@ import { getSession } from "@/lib/auth";
 import { isWatched } from "@/lib/watchlist";
 import { fetchClientNotes } from "@/lib/notes-data";
 import { toggleNoteDone, deleteNote } from "@/lib/actions/notes";
+import {
+  fetchClientTrades,
+  parseClientTradesQuery,
+  clientTradesQs,
+  type ClientTradesQuery,
+} from "@/lib/client-trades-data";
+import type { SP } from "@/lib/clients-query";
 import { KpiCard } from "@/components/kpi-card";
 import { Card } from "@/components/ui/card";
 import { WatchButton } from "@/components/watch-button";
 import { NoteForm } from "@/components/note-form";
+import { DateRangeFields } from "@/components/ui/date-range-fields";
 import { DailyPnlChart } from "@/components/charts/daily-pnl";
 import { EquityCurve } from "@/components/charts/equity-curve";
-import { usd, num, num2, dateShort, dateTimeShort, relativeDays } from "@/lib/format";
+import { usd, num, num2, dateShort, dateTimeShort, relativeDays, duration } from "@/lib/format";
 import { cn } from "@/lib/cn";
 
 export const dynamic = "force-dynamic";
@@ -116,22 +124,31 @@ async function load(id: number) {
 
 export default async function ClientDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<SP>;
 }) {
   const { id } = await params;
+  const sp = await searchParams;
   const numId = Number(id);
   if (!Number.isInteger(numId)) notFound();
 
-  const [data, session, notes] = await Promise.all([
+  const tq = parseClientTradesQuery(sp);
+  const [data, session, notes, tradeHistory] = await Promise.all([
     load(numId),
     getSession(),
     fetchClientNotes(numId),
+    fetchClientTrades(numId, tq),
   ]);
   if (!data) notFound();
   const { client: c, accounts, stats, funding, positions } = data;
   const openAsOf = (positions[0]?.asOf as string | null) ?? null;
   const watched = session ? await isWatched(session.sub, numId) : false;
+
+  const tPages = Math.max(1, Math.ceil(tradeHistory.total / tq.perPage));
+  const tFrom = tradeHistory.total === 0 ? 0 : (tq.page - 1) * tq.perPage + 1;
+  const tTo = Math.min(tq.page * tq.perPage, tradeHistory.total);
 
   return (
     <div className="p-4 lg:p-5">
@@ -446,6 +463,151 @@ export default async function ClientDetailPage({
           </tbody>
         </table>
       </Card>
+
+      <div className="mt-4">
+        <div className="mb-2 flex items-baseline justify-between">
+          <h2 className="text-sm font-semibold">Trade history ({num(tradeHistory.total)})</h2>
+        </div>
+
+        <form
+          method="GET"
+          action={`/clients/${numId}`}
+          className="mb-3 flex flex-wrap items-end gap-2 rounded-xl border border-rule bg-raised p-3 text-[13px] shadow-card"
+        >
+          <label className="flex flex-col gap-1">
+            <span className="text-[10px] uppercase tracking-[0.1em] text-muted">Ticket</span>
+            <input
+              type="search"
+              name="q"
+              defaultValue={tq.q ?? ""}
+              placeholder="trade ticket id"
+              className="h-8 w-36 rounded-md border border-rule-2 bg-raised px-2 text-ink placeholder:text-muted"
+            />
+          </label>
+          <TSel
+            name="symbol"
+            label="Symbol"
+            value={tq.symbol ?? ""}
+            opts={[["", "All"], ...tradeHistory.symbols.map((s) => [s, s] as const)]}
+          />
+          <TSel
+            name="side"
+            label="Side"
+            value={tq.side ?? ""}
+            opts={[["", "All"], ["buy", "Buy"], ["sell", "Sell"]]}
+          />
+          <TSel
+            name="result"
+            label="Result"
+            value={tq.result ?? ""}
+            opts={[["", "All"], ["win", "Winning"], ["loss", "Losing"]]}
+          />
+          {tradeHistory.logins.length > 1 && (
+            <TSel
+              name="login"
+              label="Account"
+              value={tq.login ?? ""}
+              opts={[["", "All"], ...tradeHistory.logins.map((l) => [l, l] as const)]}
+            />
+          )}
+          <DateRangeFields from={tq.from} to={tq.to} />
+          <button
+            type="submit"
+            className="h-8 rounded-md bg-accent-solid px-3 font-medium text-white hover:brightness-105"
+          >
+            Apply
+          </button>
+          <Link
+            href={`/clients/${numId}`}
+            className="h-8 rounded-md border border-rule-2 px-3 leading-8 text-ink-2 hover:text-ink"
+          >
+            Reset
+          </Link>
+        </form>
+
+        <Card className="overflow-x-auto p-0">
+          <table className="w-full min-w-[980px] text-[13px]">
+            <thead>
+              <tr className="border-b border-rule-2 text-left text-[11px] uppercase tracking-[0.08em] text-muted">
+                <th className="px-3 py-1.5 font-medium">Ticket</th>
+                <th className="px-3 py-1.5 font-medium">Login</th>
+                <th className="px-3 py-1.5 font-medium">Symbol</th>
+                <th className="px-3 py-1.5 font-medium">Side</th>
+                <th className="px-3 py-1.5 font-medium text-right">Lots</th>
+                <th className="px-3 py-1.5 font-medium text-right">Open → Close</th>
+                <th className="px-3 py-1.5 font-medium text-right">Opened</th>
+                <th className="px-3 py-1.5 font-medium text-right">Held</th>
+                <th className="px-3 py-1.5 font-medium text-right">Comm.</th>
+                <th className="px-3 py-1.5 font-medium text-right">Net PnL</th>
+              </tr>
+            </thead>
+            <tbody>
+              {tradeHistory.rows.length === 0 ? (
+                <tr>
+                  <td colSpan={10} className="px-3 py-10 text-center text-muted">
+                    No trades match these filters.
+                  </td>
+                </tr>
+              ) : (
+                tradeHistory.rows.map((t) => (
+                  <tr key={t._id} className="border-b border-rule last:border-0 hover:bg-sunken">
+                    <td className="px-3 py-1.5 font-mono text-[12px] text-ink-2">{t._id}</td>
+                    <td className="px-3 py-1.5">
+                      <Link
+                        href={`/accounts/${t.login}/history`}
+                        className="font-mono text-[12px] text-accent hover:underline"
+                      >
+                        {t.login}
+                      </Link>
+                    </td>
+                    <td className="px-3 py-1.5">{t.symbol ?? "—"}</td>
+                    <td className={cn("px-3 py-2 uppercase", t.side === "sell" ? "text-err" : "text-ok")}>
+                      {t.side ?? "—"}
+                    </td>
+                    <td className="px-3 py-1.5 text-right tabular-nums">{num2(t.volumeLots)}</td>
+                    <td className="px-3 py-1.5 text-right tabular-nums text-ink-2">
+                      {num2(t.openPrice)} → {num2(t.closePrice)}
+                    </td>
+                    <td className="px-3 py-1.5 text-right tabular-nums text-ink-2">
+                      {dateShort(t.openAt)}
+                    </td>
+                    <td className="px-3 py-1.5 text-right tabular-nums text-ink-2">
+                      {t.holdingDurationSeconds != null ? duration(t.holdingDurationSeconds) : "—"}
+                    </td>
+                    <td className="px-3 py-1.5 text-right tabular-nums text-ink-2">{usd(t.commission)}</td>
+                    <td
+                      className={cn(
+                        "px-3 py-2 text-right font-medium tabular-nums",
+                        t.netPnl < 0 ? "text-err" : "text-ok",
+                      )}
+                    >
+                      {t.netPnl >= 0 ? "+" : ""}
+                      {usd(t.netPnl)}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </Card>
+
+        <div className="flex items-center justify-between px-1 py-3 text-[13px] text-ink-2">
+          <span>
+            {tFrom.toLocaleString()}–{tTo.toLocaleString()} of {tradeHistory.total.toLocaleString()}
+          </span>
+          <span className="flex items-center gap-1">
+            <TPageLink clientId={numId} q={tq} page={tq.page - 1} disabled={tq.page <= 1}>
+              ‹ Prev
+            </TPageLink>
+            <span className="px-2 tabular-nums">
+              {tq.page} / {tPages}
+            </span>
+            <TPageLink clientId={numId} q={tq} page={tq.page + 1} disabled={tq.page >= tPages}>
+              Next ›
+            </TPageLink>
+          </span>
+        </div>
+      </div>
     </div>
   );
 }
@@ -464,3 +626,57 @@ const Badge = ({ children }: { children: React.ReactNode }) => (
     {children}
   </span>
 );
+
+function TSel({
+  name,
+  label,
+  value,
+  opts,
+}: {
+  name: string;
+  label: string;
+  value: string;
+  opts: ReadonlyArray<readonly [string, string]>;
+}) {
+  return (
+    <label className="flex flex-col gap-1">
+      <span className="text-[10px] uppercase tracking-[0.1em] text-muted">{label}</span>
+      <select
+        name={name}
+        defaultValue={value}
+        className="h-8 rounded-md border border-rule-2 bg-raised px-2 text-ink"
+      >
+        {opts.map(([v, l]) => (
+          <option key={v} value={v}>
+            {l}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+function TPageLink({
+  clientId,
+  q,
+  page,
+  disabled,
+  children,
+}: {
+  clientId: number;
+  q: ClientTradesQuery;
+  page: number;
+  disabled: boolean;
+  children: React.ReactNode;
+}) {
+  if (disabled)
+    return <span className="rounded-md px-2 py-1 text-muted opacity-50">{children}</span>;
+  return (
+    <Link
+      href={`/clients/${clientId}${clientTradesQs({ ...q, page })}`}
+      className="rounded-md border border-rule-2 px-2 py-1 hover:border-accent hover:text-accent"
+    >
+      {children}
+    </Link>
+  );
+}
