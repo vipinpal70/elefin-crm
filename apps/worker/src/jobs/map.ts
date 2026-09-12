@@ -17,6 +17,34 @@ const money = (v: unknown): Types.Decimal128 =>
 const moneyOrNull = (v: unknown): Types.Decimal128 | null =>
   v == null || v === "" ? null : (dec(v as number | string) as Types.Decimal128);
 
+/**
+ * Elefin has a confirmed API bug (2026-09): lifetime-P&L fields
+ * (`trading.net_profit`, `accounts.items[].net_profit`, per-trade `profit` /
+ * `net_profit`) can come back `null` instead of `0`. Other fields (lots,
+ * trades, commission, swap) are unaffected. Support's own workaround for the
+ * client/account aggregate: the same figure equals balance minus total
+ * deposits plus total withdrawals — use it whenever the direct field is null.
+ */
+const derivedNetProfit = (
+  balance: unknown,
+  deposits: unknown,
+  withdrawals: unknown,
+): number | null => {
+  if (balance == null || deposits == null) return null;
+  const raw = Number(balance) - Number(deposits) + Number(withdrawals ?? 0);
+  return Math.round(raw * 100) / 100; // avoid float noise like -6.680000000000007
+};
+
+/**
+ * Like `money`, but returns `undefined` (omit the key) instead of zeroing when
+ * the value is missing. Used only for the per-trade profit fields the API bug
+ * hits directly — there's no balance/deposit figure to derive a per-trade
+ * fallback from, so the safest move on a re-sync is to leave a previously
+ * -synced trade's good value alone rather than overwrite it with 0.
+ */
+const moneyOrKeep = (v: unknown): Types.Decimal128 | undefined =>
+  v == null || v === "" ? undefined : (dec(v as number | string) as Types.Decimal128);
+
 const date = (v: unknown): Date | null =>
   v ? new Date(v as string) : null;
 
@@ -71,7 +99,10 @@ export function mapClient(raw: RawClient): MappedClient {
 
       tradingLots: money(trading.lots),
       tradingTrades: int(trading.trades),
-      tradingNetProfit: money(trading.net_profit),
+      tradingNetProfit: money(
+        trading.net_profit ??
+          derivedNetProfit(accounts.balance, funding.deposits, funding.withdrawals),
+      ),
       tradingLastTradeAt: date(trading.last_trade_at),
 
       commissionEarned: money(raw.commission_earned),
@@ -111,7 +142,10 @@ export function mapAccount(
       netDeposit: money(item.net_deposit),
       lots: money(item.lots),
       trades: int(item.trades),
-      netProfit: money(item.net_profit),
+      netProfit: money(
+        item.net_profit ??
+          derivedNetProfit(item.balance, item.total_deposit, item.total_withdrawal),
+      ),
       lastTradeAt: date(item.last_trade_at),
       commission: money(item.commission),
       apiUpdatedAt: date(item.updated_at),
@@ -138,6 +172,11 @@ export function mapTrade(
   login: string,
   clientId: number | null,
 ): MappedDoc {
+  // profit / net_profit: omit rather than zero when the API sends null, so a
+  // re-sync (the 1h overlap window re-fetches recent trades every run) can't
+  // clobber a previously-good value with 0 while Elefin's bug is live.
+  const profit = moneyOrKeep(t.profit);
+  const netPnl = moneyOrKeep(t.net_profit ?? t.profit);
   return {
     _id: String(t.trade_ticket_id),
     set: {
@@ -154,11 +193,11 @@ export function mapTrade(
         t.holding_duration_seconds != null ? int(t.holding_duration_seconds) : null,
       stopLoss: moneyOrNull(t.stop_loss),
       takeProfit: moneyOrNull(t.take_profit),
-      profit: money(t.profit),
+      ...(profit !== undefined ? { profit } : {}),
       commission: money(t.commission),
       brokerCommission: money(t.broker_commission),
       swap: money(t.swap),
-      netPnl: money(t.net_profit ?? t.profit),
+      ...(netPnl !== undefined ? { netPnl } : {}),
       currency: t.currency ?? "USD",
       raw: t,
       syncedAt: new Date(),
