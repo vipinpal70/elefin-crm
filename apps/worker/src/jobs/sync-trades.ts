@@ -1,5 +1,6 @@
 import { Account, Trade } from "@elefin/db";
-import { createElefinApi, ElefinApiError } from "@elefin/elefin-client";
+import { ElefinApiError } from "@elefin/elefin-client";
+import { createLoggedElefinApi } from "../api-logger";
 import { log } from "../logger";
 import type { Job } from "../runner";
 import { mapTrade } from "./map";
@@ -13,7 +14,7 @@ const OVERLAP_MS = 60 * 60 * 1000; // re-pull the last hour per account
  * partner's `data_availability.trades_from`. Upserts by `trade_ticket_id`.
  */
 export const syncTrades: Job = async ({ signal }) => {
-  const api = createElefinApi();
+  const api = createLoggedElefinApi("trades");
 
   const me = await api.me(signal);
   let apiCalls = 1;

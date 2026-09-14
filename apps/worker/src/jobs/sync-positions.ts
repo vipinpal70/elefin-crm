@@ -1,5 +1,6 @@
 import { Account, Position } from "@elefin/db";
-import { createElefinApi, ElefinApiError } from "@elefin/elefin-client";
+import { ElefinApiError } from "@elefin/elefin-client";
+import { createLoggedElefinApi } from "../api-logger";
 import { log } from "../logger";
 import type { Job } from "../runner";
 import { mapPosition } from "./map";
@@ -12,7 +13,7 @@ import { mapPosition } from "./map";
  * last-known rows in place and just refresh what we can.
  */
 export const syncPositions: Job = async ({ signal }) => {
-  const api = createElefinApi();
+  const api = createLoggedElefinApi("positions");
 
   const accounts = await Account.find(
     {

@@ -1,5 +1,6 @@
 import { Account, Client } from "@elefin/db";
-import { createElefinApi, ElefinApiError } from "@elefin/elefin-client";
+import { ElefinApiError } from "@elefin/elefin-client";
+import { createLoggedElefinApi } from "../api-logger";
 import { log } from "../logger";
 import type { Job } from "../runner";
 import { mapAccount, mapClient } from "./map";
@@ -14,7 +15,7 @@ import { mapAccount, mapClient } from "./map";
  * schedule it every few hours, not every 15 minutes.
  */
 export const syncAccounts: Job = async ({ signal }) => {
-  const api = createElefinApi();
+  const api = createLoggedElefinApi("accounts");
   const clients = await Client.find({}, { _id: 1 }).lean();
 
   let apiCalls = 0;

@@ -1,4 +1,4 @@
-import { createElefinApi } from "@elefin/elefin-client";
+import { createLoggedElefinApi } from "../api-logger";
 import { log } from "../logger";
 import type { Job } from "../runner";
 
@@ -7,7 +7,7 @@ import type { Job } from "../runner";
  * detect a lifecycle event (deactivation / expiry surface as 401).
  */
 export const syncMe: Job = async ({ signal }) => {
-  const api = createElefinApi({ onRequest: (i) => log.debug(`GET ${i.path} -> ${i.status}`) });
+  const api = createLoggedElefinApi("me");
   const me = await api.me(signal);
   const abilities = me.key.abilities;
   // Per the docs, an empty list means every ability except `clients.pii` is

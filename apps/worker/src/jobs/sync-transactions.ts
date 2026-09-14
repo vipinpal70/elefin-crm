@@ -1,5 +1,5 @@
 import { FundingEvent, SyncState, TXN_TYPES } from "@elefin/db";
-import { createElefinApi } from "@elefin/elefin-client";
+import { createLoggedElefinApi } from "../api-logger";
 import { log } from "../logger";
 import type { Job } from "../runner";
 import { mapTransaction } from "./map";
@@ -14,7 +14,7 @@ const OVERLAP_MS = 2 * 24 * 60 * 60 * 1000; // re-pull the last 2 days each run
  * (`DEP-…` / `WDR-…`) so re-runs never duplicate.
  */
 export const syncTransactions: Job = async ({ signal }) => {
-  const api = createElefinApi();
+  const api = createLoggedElefinApi("transactions");
   let apiCalls = 0;
 
   const state = await SyncState.findById(STATE_ID).lean();

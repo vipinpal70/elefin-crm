@@ -14,6 +14,7 @@ const ITEMS: Array<{ href: string; label: string; group?: string }> = [
   { href: "/referral-codes", label: "Referral codes" },
   { href: "/alerts", label: "Alerts" },
   { href: "/sync", label: "Sync status", group: "Admin" },
+  { href: "/api-log", label: "API log", group: "Admin" },
   { href: "/settings", label: "Settings", group: "Admin" },
 ];
 

@@ -16,3 +16,4 @@ export { AppConfig, type AppConfigDoc } from "./AppConfig";
 export { WatchItem, type WatchItemDoc } from "./WatchItem";
 export { ClientNote, type ClientNoteDoc } from "./ClientNote";
 export { Digest, type DigestDoc } from "./Digest";
+export { ApiCallLog, type ApiCallLogDoc } from "./ApiCallLog";

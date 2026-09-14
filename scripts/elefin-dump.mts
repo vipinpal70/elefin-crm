@@ -39,7 +39,7 @@ const argVal = (name: string, def: string | null): string | null => {
   return i >= 0 && ARGV[i + 1] ? ARGV[i + 1]! : def;
 };
 
-const EMAIL = (argVal("--email", "subhashbetal@gmail.com") ?? "").toLowerCase();
+const EMAIL = (argVal("--email", "mayankseervip1@gmail.com") ?? "").toLowerCase();
 const ONLY_LOGIN = argVal("--login", null);
 const FROM = argVal("--from", "2026-08-01T00:00:00Z")!;
 const TO = argVal("--to", "2026-10-01T00:00:00Z")!;
@@ -125,8 +125,8 @@ async function main() {
     });
     console.log(
       `  ${ok ? "ok " : "ERR"}  ${String(n).padStart(2)}  ${label}   ` +
-        `(${endpoint}${params ? " " + JSON.stringify(params) : ""})` +
-        (error ? `  — ${error}` : ""),
+      `(${endpoint}${params ? " " + JSON.stringify(params) : ""})` +
+      (error ? `  — ${error}` : ""),
     );
     if (SLEEP_MS > 0) await sleep(SLEEP_MS);
     return { ok, body };

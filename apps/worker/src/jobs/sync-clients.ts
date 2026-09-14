@@ -1,5 +1,5 @@
 import { Account, Client } from "@elefin/db";
-import { createElefinApi } from "@elefin/elefin-client";
+import { createLoggedElefinApi } from "../api-logger";
 import { log } from "../logger";
 import type { Job } from "../runner";
 import { mapClient } from "./map";
@@ -13,7 +13,7 @@ import { mapClient } from "./map";
  * ~2 API calls for a 266-client book at per_page=200.
  */
 export const syncClients: Job = async ({ signal }) => {
-  const api = createElefinApi();
+  const api = createLoggedElefinApi("clients");
   let apiCalls = 0;
 
   const rows = await api.listAllClients(

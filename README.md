@@ -232,6 +232,24 @@ Backups: `mongodump` (or Atlas continuous backup).
 
 `npm test` at the repo root runs every workspace's suite (30 tests).
 
+### API log
+
+**`/api-log`** (Admin) — every Elefin API response a worker job has seen,
+newest first: job, endpoint + params, resolved client/login, ok/error +
+HTTP status, rate-limit headroom, duration, and a detail page with the raw
+response body verbatim. Global filter (`q`) matches a client id, email, or
+name substring across every call, plus job/status/date filters. Not cached —
+built for watching a job run live.
+
+`apps/worker/src/api-logger.ts` wraps each job's Elefin client at the
+`request()` level (so every typed endpoint method is covered uniformly,
+with no changes to `@elefin/elefin-client` itself) and writes one
+`ApiCallLog` document per call. Logging is best-effort and never blocks or
+fails the sync; large payloads are stored as a bounded preview instead of
+the full body. Auto-expires after 14 days (debug-grade data, not business
+data — see `SyncRun`'s 90-day and `AuditLog`'s 400-day retention for
+comparison).
+
 Still not wired: 2FA, Sentry, PDF export, `client_daily` per-client snapshots.
 
 ### Known upstream issue — Elefin null profit fields (ongoing, 2026-09)
