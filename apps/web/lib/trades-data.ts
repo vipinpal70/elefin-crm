@@ -24,6 +24,8 @@ export interface TradeRow {
   commission: number;
   swap: number;
   netPnl: number;
+  /** Elefin has never returned a profit for this ticket — netPnl/profit are a placeholder 0, not a real result. */
+  profitMissing: boolean;
 }
 
 export interface PositionRow {
@@ -62,6 +64,8 @@ export interface AccountHistory {
   symbols: string[];
   range: DateRange;
   symbol?: string;
+  /** Trades in view whose profit Elefin has never supplied (see TradeRow.profitMissing). */
+  missingProfitCount: number;
 }
 
 export async function fetchAccountHistory(
@@ -114,5 +118,6 @@ async function loadAccountHistory(
     symbols: (symbols as (string | null)[]).filter((x): x is string => !!x).sort(),
     range,
     symbol,
+    missingProfitCount: trades.filter((t) => t.profitMissing).length,
   };
 }

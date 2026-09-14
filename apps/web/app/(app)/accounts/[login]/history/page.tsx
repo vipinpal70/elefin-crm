@@ -24,7 +24,18 @@ export default async function TradingHistoryPage({
   const data = await fetchAccountHistory(login, sp);
   if (!data) notFound();
 
-  const { account: a, clientName, clientId, stats: s, trades, positions, symbols, range, symbol } = data;
+  const {
+    account: a,
+    clientName,
+    clientId,
+    stats: s,
+    trades,
+    positions,
+    symbols,
+    range,
+    symbol,
+    missingProfitCount,
+  } = data;
   const openAsOf = positions[0]?.asOf ?? null;
 
   return (
@@ -106,6 +117,19 @@ export default async function TradingHistoryPage({
           sub={`comm ${usd(s.commissionPaid)}`}
         />
       </div>
+
+      {missingProfitCount > 0 && (
+        <Card className="mt-3 border-butter-line bg-butter">
+          <p className="text-[13px] text-ink-2">
+            <strong className="text-ink">{missingProfitCount}</strong> trade
+            {missingProfitCount === 1 ? "" : "s"} in this view came back from Elefin with no
+            profit figure (a known, ongoing API issue) and show as $0.00 below — every KPI and
+            chart on this page may understate the real loss/gain. This account&apos;s confirmed
+            lifetime Net PnL from Elefin is{" "}
+            <strong className={a.netProfit < 0 ? "text-err" : "text-ok"}>{usd(a.netProfit)}</strong>.
+          </p>
+        </Card>
+      )}
 
       {positions.length > 0 && (
         <Card className="mt-4">
@@ -234,9 +258,21 @@ export default async function TradingHistoryPage({
                       {t.holdingDurationSeconds != null ? duration(t.holdingDurationSeconds) : "—"}
                     </td>
                     <td className="px-3 py-1.5 text-right tabular-nums text-ink-2">{usd(t.commission)}</td>
-                    <td className={cn("px-3 py-2 text-right font-medium tabular-nums", t.netPnl < 0 ? "text-err" : "text-ok")}>
-                      {t.netPnl >= 0 ? "+" : ""}
-                      {usd(t.netPnl)}
+                    <td
+                      className={cn(
+                        "px-3 py-2 text-right font-medium tabular-nums",
+                        t.profitMissing ? "text-muted" : t.netPnl < 0 ? "text-err" : "text-ok",
+                      )}
+                      title={t.profitMissing ? "Elefin hasn't returned a profit figure for this trade yet" : undefined}
+                    >
+                      {t.profitMissing ? (
+                        "n/a*"
+                      ) : (
+                        <>
+                          {t.netPnl >= 0 ? "+" : ""}
+                          {usd(t.netPnl)}
+                        </>
+                      )}
                     </td>
                   </tr>
                 ))

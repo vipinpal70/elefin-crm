@@ -73,6 +73,8 @@ export interface ClientTradeRow {
   commission: number;
   swap: number;
   netPnl: number;
+  /** Elefin has never returned a profit for this ticket — netPnl is a placeholder 0, not a real result. */
+  profitMissing: boolean;
 }
 
 export interface ClientTradesResult {
@@ -80,6 +82,8 @@ export interface ClientTradesResult {
   total: number;
   symbols: string[];
   logins: string[];
+  /** Trades matching the current filters (not just this page) with no real profit yet. */
+  missingProfitCount: number;
 }
 
 /** One client's closed trades across all their accounts — filtered, paginated. */
@@ -101,7 +105,7 @@ async function loadClientTrades(
   await connect();
   const filter = buildFilter(clientId, q);
 
-  const [docs, total, symbols, logins] = await Promise.all([
+  const [docs, total, symbols, logins, missingProfitCount] = await Promise.all([
     Trade.find(filter)
       .sort({ closeAt: -1, _id: -1 })
       .skip((q.page - 1) * q.perPage)
@@ -110,6 +114,7 @@ async function loadClientTrades(
     Trade.countDocuments(filter),
     Trade.distinct("symbol", { clientId }),
     Trade.distinct("login", { clientId }),
+    Trade.countDocuments({ ...filter, profitMissing: true }),
   ]);
 
   return {
@@ -117,6 +122,7 @@ async function loadClientTrades(
     total,
     symbols: (symbols as (string | null)[]).filter((x): x is string => !!x).sort(),
     logins: (logins as (string | null)[]).filter((x): x is string => !!x).sort(),
+    missingProfitCount,
   };
 }
 

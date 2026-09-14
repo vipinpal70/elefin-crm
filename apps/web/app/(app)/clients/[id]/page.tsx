@@ -103,6 +103,7 @@ async function load(id: number) {
       netPnl: 1,
       openAt: 1,
       closeAt: 1,
+      profitMissing: 1,
     })
       .sort({ closeAt: 1 })
       .limit(5000)
@@ -119,6 +120,7 @@ async function load(id: number) {
     stats: tradingStats(trades as never),
     funding: fundingRaw.map((f) => plain<FundingRow>(f)),
     positions: positionsRaw.map((p) => plain<Record<string, unknown>>(p)),
+    missingProfitCount: trades.filter((t) => t.profitMissing).length,
   };
 }
 
@@ -142,7 +144,7 @@ export default async function ClientDetailPage({
     fetchClientTrades(numId, tq),
   ]);
   if (!data) notFound();
-  const { client: c, accounts, stats, funding, positions } = data;
+  const { client: c, accounts, stats, funding, positions, missingProfitCount } = data;
   const openAsOf = (positions[0]?.asOf as string | null) ?? null;
   const watched = session ? await isWatched(session.sub, numId) : false;
 
@@ -187,9 +189,23 @@ export default async function ClientDetailPage({
           title="Net PnL"
           value={usd(c.tradingNetProfit)}
           tone={c.tradingNetProfit < 0 ? "negative" : c.tradingNetProfit > 0 ? "positive" : "neutral"}
+          info="Lifetime trading profit/loss across all of this client's accounts (from the account-level figures below when available)."
         />
         <KpiCard title="Commission" value={usd(c.commissionEarned)} tone="positive" />
       </div>
+
+      {missingProfitCount > 0 && (
+        <Card className="mt-3 border-butter-line bg-butter">
+          <p className="text-[13px] text-ink-2">
+            <strong className="text-ink">{missingProfitCount}</strong> of this client&apos;s
+            trade{missingProfitCount === 1 ? "" : "s"} came back from Elefin with no profit
+            figure (a known, ongoing API issue) and show as $0.00 in the trade history and
+            charts below. The <strong className="text-ink">Net PnL</strong> KPI above is not
+            affected — it comes from the account-level totals, not by summing trade rows — so
+            treat it as the authoritative figure until Elefin backfills the missing tickets.
+          </p>
+        </Card>
+      )}
 
       <div className="mt-4 grid gap-3 lg:grid-cols-2">
         <Card>
@@ -467,6 +483,11 @@ export default async function ClientDetailPage({
       <div className="mt-4">
         <div className="mb-2 flex items-baseline justify-between">
           <h2 className="text-sm font-semibold">Trade history ({num(tradeHistory.total)})</h2>
+          {tradeHistory.missingProfitCount > 0 && (
+            <span className="text-[11px] text-muted">
+              {tradeHistory.missingProfitCount} shown below have no profit figure from Elefin yet
+            </span>
+          )}
         </div>
 
         <form
@@ -578,11 +599,18 @@ export default async function ClientDetailPage({
                     <td
                       className={cn(
                         "px-3 py-2 text-right font-medium tabular-nums",
-                        t.netPnl < 0 ? "text-err" : "text-ok",
+                        t.profitMissing ? "text-muted" : t.netPnl < 0 ? "text-err" : "text-ok",
                       )}
+                      title={t.profitMissing ? "Elefin hasn't returned a profit figure for this trade yet" : undefined}
                     >
-                      {t.netPnl >= 0 ? "+" : ""}
-                      {usd(t.netPnl)}
+                      {t.profitMissing ? (
+                        "n/a*"
+                      ) : (
+                        <>
+                          {t.netPnl >= 0 ? "+" : ""}
+                          {usd(t.netPnl)}
+                        </>
+                      )}
                     </td>
                   </tr>
                 ))

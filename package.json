@@ -23,6 +23,7 @@
     "db:seed": "npm run seed --workspace @elefin/web",
     "import:xlsx": "tsx scripts/import-xlsx.mts",
     "backfill:snapshots": "tsx scripts/backfill-snapshots.mts",
+    "backfill:trade-profit": "tsx scripts/backfill-trade-profit.mts",
     "probe:api": "tsx scripts/probe-api.mts",
     "format": "prettier --write .",
     "set:password": "tsx scripts/set-password.mts",

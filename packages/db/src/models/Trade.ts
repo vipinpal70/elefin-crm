@@ -34,6 +34,13 @@ const tradeSchema = new Schema(
     swap: { type: Decimal128, default: "0" },
     /** `net_profit` as reported by the API (profit + swap + broker fees). */
     netPnl: { type: Decimal128, default: "0" },
+    /**
+     * True when the API has never returned a `profit`/`net_profit` for this
+     * ticket (a confirmed, ongoing Elefin bug — see map.ts). `profit`/`netPnl`
+     * are then the schema default "0", a placeholder, not a real $0 trade.
+     * Cleared for good the first time a real value arrives.
+     */
+    profitMissing: { type: Boolean, default: false },
     currency: { type: String, default: "USD" },
 
     raw: { type: Schema.Types.Mixed, select: false },

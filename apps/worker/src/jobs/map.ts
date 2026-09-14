@@ -36,6 +36,25 @@ const derivedNetProfit = (
 };
 
 /**
+ * Sum each account's own net_profit (falling back per-account to
+ * `derivedNetProfit`) instead of deriving one figure from the client-wide
+ * balance/deposit/withdrawal totals. More accurate whenever `/clients/{id}`'s
+ * `accounts.items[]` is available: the client-wide formula silently assumes
+ * commission/fees net out cleanly against total deposits across every
+ * account, which doesn't always hold (seen live: a client whose account-level
+ * net_profit was -101.82 derived to only -100 at the client-wide level).
+ */
+const sumAccountNetProfit = (items: RawAccountItem[]): number => {
+  const total = items.reduce((sum, it) => {
+    const v =
+      it.net_profit ??
+      derivedNetProfit(it.balance, it.total_deposit, it.total_withdrawal);
+    return sum + (v ?? 0);
+  }, 0);
+  return Math.round(total * 100) / 100;
+};
+
+/**
  * Like `money`, but returns `undefined` (omit the key) instead of zeroing when
  * the value is missing. Used only for the per-trade profit fields the API bug
  * hits directly — there's no balance/deposit figure to derive a per-trade
@@ -67,6 +86,7 @@ export function mapClient(raw: RawClient): MappedClient {
   const accounts = raw.accounts ?? {};
   const trading = raw.trading ?? {};
   const logins = (accounts.logins ?? []).map(String);
+  const items = accounts.items;
 
   return {
     _id: int(raw.client_id),
@@ -101,7 +121,9 @@ export function mapClient(raw: RawClient): MappedClient {
       tradingTrades: int(trading.trades),
       tradingNetProfit: money(
         trading.net_profit ??
-          derivedNetProfit(accounts.balance, funding.deposits, funding.withdrawals),
+          (items?.length
+            ? sumAccountNetProfit(items)
+            : derivedNetProfit(accounts.balance, funding.deposits, funding.withdrawals)),
       ),
       tradingLastTradeAt: date(trading.last_trade_at),
 
@@ -158,6 +180,8 @@ export function mapAccount(
 export interface MappedDoc {
   _id: string;
   set: Record<string, unknown>;
+  /** Applied only when the upsert inserts a brand-new document. */
+  setOnInsert?: Record<string, unknown>;
 }
 
 const sideOf = (t: RawTrade | RawPosition): "buy" | "sell" | null => {
@@ -177,6 +201,7 @@ export function mapTrade(
   // clobber a previously-good value with 0 while Elefin's bug is live.
   const profit = moneyOrKeep(t.profit);
   const netPnl = moneyOrKeep(t.net_profit ?? t.profit);
+  const hasProfit = profit !== undefined || netPnl !== undefined;
   return {
     _id: String(t.trade_ticket_id),
     set: {
@@ -198,10 +223,18 @@ export function mapTrade(
       brokerCommission: money(t.broker_commission),
       swap: money(t.swap),
       ...(netPnl !== undefined ? { netPnl } : {}),
+      // A real value just arrived — clear the flag for good, even if an
+      // earlier sync (before this field existed, or during the outage)
+      // never set it.
+      ...(hasProfit ? { profitMissing: false } : {}),
       currency: t.currency ?? "USD",
       raw: t,
       syncedAt: new Date(),
     },
+    // Only marks a *brand-new* ticket as unreliable. An existing ticket that
+    // already has a real value keeps it (moneyOrKeep above) and is never
+    // re-flagged just because this particular re-sync came back null.
+    setOnInsert: hasProfit ? undefined : { profitMissing: true },
   };
 }
 

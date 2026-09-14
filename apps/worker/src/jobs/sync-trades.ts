@@ -60,9 +60,16 @@ export const syncTrades: Job = async ({ signal }) => {
       );
       if (rows.length) {
         const ops = rows.map((t) => {
-          const { _id, set } = mapTrade(t, acc._id, acc.clientId ?? null);
+          const { _id, set, setOnInsert } = mapTrade(t, acc._id, acc.clientId ?? null);
           return {
-            updateOne: { filter: { _id }, update: { $set: set }, upsert: true },
+            updateOne: {
+              filter: { _id },
+              update: {
+                $set: set,
+                ...(setOnInsert ? { $setOnInsert: setOnInsert } : {}),
+              },
+              upsert: true,
+            },
           };
         });
         const res = await Trade.bulkWrite(ops, { ordered: false });

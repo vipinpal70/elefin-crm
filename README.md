@@ -233,3 +233,24 @@ Backups: `mongodump` (or Atlas continuous backup).
 `npm test` at the repo root runs every workspace's suite (30 tests).
 
 Still not wired: 2FA, Sentry, PDF export, `client_daily` per-client snapshots.
+
+### Known upstream issue — Elefin null profit fields (ongoing, 2026-09)
+
+Elefin's API can return `null` instead of `0` for lifetime-P&L fields:
+`trading.net_profit`, `accounts.items[].net_profit`, and per-trade
+`profit`/`net_profit`. What we do about it (`apps/worker/src/jobs/map.ts`):
+
+- **Client/account aggregates** (`Client.tradingNetProfit`, `Account.netProfit`)
+  self-correct: fall back to `accounts.items[].net_profit` summed per account,
+  then to `balance − deposits + withdrawals`, only reaching for the raw field
+  first. These are trustworthy.
+- **Per-trade `profit`/`netPnl`** have no such fallback (no per-trade
+  balance/deposit concept) — a null is never written over an existing good
+  value (`moneyOrKeep`), but a *brand-new* ticket with a null profit is
+  flagged `profitMissing: true` and shown as `n/a*` in the trade tables
+  (`/clients/{id}`, `/accounts/{login}/history`) rather than a misleading
+  `$0.00`. Trust the account/client KPI, not a sum of trade rows, while any
+  are flagged.
+- `npm run backfill:trade-profit` re-flags legacy trades that predate this
+  field (0 profit despite a real price move) and re-fetches every affected
+  account from the API — safe to re-run periodically until Elefin fixes it.
