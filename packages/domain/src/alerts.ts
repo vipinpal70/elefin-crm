@@ -16,7 +16,8 @@ export type AlertType =
   | "margin_pressure"
   | "new_whale"
   | "first_trade"
-  | "integration_down";
+  | "integration_down"
+  | "partner_code_changed";
 
 export interface AlertRule {
   type: AlertType;
@@ -81,6 +82,12 @@ export const ALERT_RULES: Record<AlertType, AlertRule> = {
     description: "The Elefin key returned 401, or a sync has stalled.",
     defaults: { staleAfterHours: 6 },
   },
+  partner_code_changed: {
+    type: "partner_code_changed",
+    severity: "warning",
+    description: "No longer affiliated with your partner code (left / switched IB).",
+    defaults: {},
+  },
 };
 
 export interface AlertDraft {
@@ -107,6 +114,8 @@ export interface AlertClientInput {
   tradingLastTradeAt: number | null; // epoch ms
   fundingFirstDepositAt: number | null;
   firstTradeAt: number | null; // epoch ms, min(trades.closeAt)
+  /** Still affiliated with our referral code at Elefin? See partner-code-change-plan.md. */
+  partnerStatus: "active" | "departed";
 }
 
 export interface AlertTxnInput {
@@ -194,6 +203,18 @@ export function evaluateAlerts(input: AlertInput): AlertDraft[] {
   }
 
   for (const c of clients) {
+    // no longer under our referral code
+    if (c.partnerStatus === "departed") {
+      out.push({
+        type: "partner_code_changed",
+        clientId: c._id,
+        severity: "warning",
+        title: `${c.name || `#${c._id}`} is no longer under your referral code`,
+        dedupeKey: "",
+        payload: {},
+      });
+    }
+
     // funded, never traded
     const fundedForDays = thr(T, "funded_never_traded", "fundedForDays");
     if (

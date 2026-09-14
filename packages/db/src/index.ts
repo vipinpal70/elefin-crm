@@ -11,6 +11,7 @@ export {
   SYNC_JOBS,
   SYNC_STATUSES,
   ALERT_SEVERITIES,
+  PARTNER_STATUSES,
   type Status,
   type Side,
   type TxnType,
@@ -18,5 +19,6 @@ export {
   type SyncJob,
   type SyncStatus,
   type AlertSeverity,
+  type PartnerStatus,
 } from "./shared";
 export * from "./models";

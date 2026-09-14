@@ -145,6 +145,14 @@ function Row({ r }: { r: ClientRow }) {
           {r.name || `#${r._id}`}
         </Link>
         <span className="ml-2 text-[11px] text-muted">#{r._id}</span>
+        {r.partnerStatus === "departed" ? (
+          <span
+            className="ml-1.5 rounded-full bg-err-bg px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-err"
+            title={r.departedAt ? `Left your referral code ${relativeDays(r.departedAt)}` : "No longer under your referral code"}
+          >
+            Left
+          </span>
+        ) : null}
         {r.openNotes > 0 ? (
           <span
             className="ml-1.5 rounded-full bg-accent-bg px-1.5 text-[10px] font-medium text-accent"

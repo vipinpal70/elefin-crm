@@ -34,6 +34,9 @@ const accountSchema = new Schema(
     lastTradeAt: { type: Date, default: null, index: true },
     commission: { type: Decimal128, default: "0" },
 
+    /** Elefin's own flag: still affiliated with our partner code (`accounts.items[].affiliated`). */
+    affiliated: { type: Boolean, default: true },
+
     /** `updated_at` as reported by the API (distinct from our timestamps). */
     apiUpdatedAt: { type: Date, default: null },
 

@@ -14,6 +14,8 @@ const COLUMNS: Array<[string, (r: Record<string, unknown>) => unknown]> = [
   ["status", (r) => r.status],
   ["referral_code", (r) => r.referralCode],
   ["registered_at", (r) => r.registeredAt],
+  ["partner_status", (r) => r.partnerStatus],
+  ["departed_at", (r) => r.departedAt],
   ["funded", (r) => (r.fundingIsFunded ? "yes" : "no")],
   ["deposits", (r) => r.fundingDeposits],
   ["withdrawals", (r) => r.fundingWithdrawals],

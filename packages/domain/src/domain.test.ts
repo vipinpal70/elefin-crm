@@ -262,6 +262,21 @@ test("evaluateAlerts: dormant dedupeKey tracks the last trade day", () => {
   assert.equal(d!.dedupeKey, "2026-08-01");
 });
 
+test("evaluateAlerts: partner_code_changed fires for a departed client only", () => {
+  const out = evaluateAlerts(
+    baseInput({
+      clients: [
+        { ...clientStub(1), partnerStatus: "departed" },
+        { ...clientStub(2) }, // still active
+      ],
+    }),
+  );
+  const fired = out.filter((a) => a.type === "partner_code_changed");
+  assert.equal(fired.length, 1);
+  assert.equal(fired[0]!.clientId, 1);
+  assert.equal(fired[0]!.severity, "warning");
+});
+
 test("evaluateAlerts: integration_down is emitted when set", () => {
   const out = evaluateAlerts(
     baseInput({ integrationDown: { reason: "401", at: NOW } }),
@@ -281,5 +296,6 @@ function clientStub(id: number) {
     tradingLastTradeAt: null,
     fundingFirstDepositAt: null,
     firstTradeAt: null,
+    partnerStatus: "active" as const,
   };
 }

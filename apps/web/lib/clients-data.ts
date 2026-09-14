@@ -20,6 +20,8 @@ const LIST_PROJECTION = {
   tradingLastTradeAt: 1,
   commissionEarned: 1,
   accountsCount: 1,
+  partnerStatus: 1,
+  departedAt: 1,
 } as const;
 
 export interface ClientRow {
@@ -29,6 +31,8 @@ export interface ClientRow {
   status: string;
   referralCode: string | null;
   registeredAt: string | null;
+  partnerStatus: "active" | "departed";
+  departedAt: string | null;
   fundingIsFunded: boolean;
   fundingDeposits: number;
   fundingWithdrawals: number;

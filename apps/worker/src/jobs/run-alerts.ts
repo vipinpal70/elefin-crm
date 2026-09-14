@@ -27,6 +27,7 @@ const STATEFUL: AlertType[] = [
   "balance_wipeout",
   "margin_pressure",
   "new_whale",
+  "partner_code_changed",
 ];
 
 export const runAlerts: Job = async () => {
@@ -48,6 +49,7 @@ export const runAlerts: Job = async () => {
           tradingTrades: 1,
           tradingLastTradeAt: 1,
           fundingFirstDepositAt: 1,
+          partnerStatus: 1,
         },
       ).lean(),
       Trade.aggregate<{ _id: number; first: Date }>([
@@ -82,6 +84,7 @@ export const runAlerts: Job = async () => {
       tradingLastTradeAt: ms(c.tradingLastTradeAt),
       fundingFirstDepositAt: ms(c.fundingFirstDepositAt),
       firstTradeAt: firstTradeAt.get(c._id) ?? null,
+      partnerStatus: (c.partnerStatus as "active" | "departed" | undefined) ?? "active",
     })),
     recentTxns: txnDocs.map((t) => ({
       id: String(t._id),

@@ -250,6 +250,32 @@ the full body. Auto-expires after 14 days (debug-grade data, not business
 data — see `SyncRun`'s 90-day and `AuditLog`'s 400-day retention for
 comparison).
 
+### Partner-code change detection
+
+A client can switch their Elefin referral code to a different IB at any time;
+the API then simply stops including them in results. `Client.partnerStatus`
+(`"active"` | `"departed"`) tracks this — see `partner-code-change-plan.md`
+for the full design. Three combined signals, from `apps/worker/src/jobs/
+partner-status.ts` (shared by `sync-clients` and `sync-accounts`):
+
+1. **`accounts.items[].affiliated`** (from `sync-accounts`, every 6h, already
+   fetched for free) — Elefin's own per-account flag. Strongest signal.
+2. **Disappearance from `GET /clients`** (`sync-clients`, every 15 min) —
+   that endpoint is implicitly "clients currently under your code". Missing
+   for 2 consecutive runs with no reappearance confirms departure on its own
+   (weakest signal, used only as a fallback).
+3. **`GET /clients/{id}` failing (403/404) for just one client** while others
+   in the same `sync-accounts` run keep succeeding, corroborated by (2)
+   already having flagged that client as missing.
+
+A client is only ever labelled `departed` once one of these actually fires —
+never from a single ambiguous tick. Reappearing under our code (win-back)
+flips it back to `active` automatically. UI: a `LEFT` badge + filter on
+`/clients` (defaults to hiding departed clients), a banner on the client
+profile, a `partner_code_changed` alert (`/alerts`, auto-resolves on
+win-back), and a CSV export column. Dashboard KPIs exclude departed clients
+from current-book totals; historical `book_daily` trend data is untouched.
+
 Still not wired: 2FA, Sentry, PDF export, `client_daily` per-client snapshots.
 
 ### Known upstream issue — Elefin null profit fields (ongoing, 2026-09)

@@ -37,6 +37,9 @@ interface ClientDoc {
   referralCode: string | null;
   registeredAt: string | null;
   referredAt: string | null;
+  partnerStatus: "active" | "departed";
+  partnerStatusReason: string | null;
+  departedAt: string | null;
   fundingCurrency: string;
   fundingDeposits: number;
   fundingWithdrawals: number;
@@ -164,6 +167,11 @@ export default async function ClientDetailPage({
           </h1>
           <span className="text-sm text-muted">#{c._id}</span>
           <Badge>{c.status}</Badge>
+          {c.partnerStatus === "departed" ? (
+            <span className="rounded-full bg-err-bg px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide text-err">
+              Left your code
+            </span>
+          ) : null}
           <span className="font-mono text-[12px] text-ink-2">{c.referralCode ?? "no code"}</span>
           <span className="text-[13px] text-ink-2">{c.country}</span>
           <span className="ml-auto">
@@ -193,6 +201,16 @@ export default async function ClientDetailPage({
         />
         <KpiCard title="Commission" value={usd(c.commissionEarned)} tone="positive" />
       </div>
+
+      {c.partnerStatus === "departed" && (
+        <Card className="mt-3 border-err/30 bg-err-bg">
+          <p className="text-[13px] text-err">
+            This client is no longer affiliated with your partner code
+            {c.departedAt ? ` (left ${dateShort(c.departedAt)})` : ""}. Commission has
+            stopped accruing; the historical data below is unaffected.
+          </p>
+        </Card>
+      )}
 
       {missingProfitCount > 0 && (
         <Card className="mt-3 border-butter-line bg-butter">

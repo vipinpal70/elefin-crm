@@ -3,6 +3,7 @@ import { createLoggedElefinApi } from "../api-logger";
 import { log } from "../logger";
 import type { Job } from "../runner";
 import { mapClient } from "./map";
+import { markDepartedMany, reactivateMany } from "./partner-status";
 
 /**
  * Page through GET /clients and upsert one `clients` doc per referred client
@@ -67,6 +68,55 @@ export const syncClients: Job = async ({ signal }) => {
     ? await Account.bulkWrite(accountOps, { ordered: false })
     : null;
 
+  // Partner-code churn: GET /clients is implicitly "clients currently under
+  // our code", so a client we knew about that this run didn't return is a
+  // signal they may have switched away. Missing for a *second* consecutive
+  // run (no reappearance, and sync-accounts hasn't already resolved it one
+  // way or the other) is treated as confirmed — the weakest of the three
+  // signals in partner-code-change-plan.md, used only as a fallback.
+  const returnedIds = new Set(rows.map((r) => Number(r.client_id)));
+  const known = await Client.find(
+    {},
+    { _id: 1, partnerStatus: 1, missingSince: 1 },
+  ).lean();
+
+  const reappearedIds: number[] = [];
+  const clearedMissingIds: number[] = [];
+  const firstMissIds: number[] = [];
+  const confirmDepartedIds: number[] = [];
+
+  for (const c of known) {
+    const present = returnedIds.has(c._id);
+    if (present) {
+      if (c.partnerStatus === "departed") reappearedIds.push(c._id);
+      else if (c.missingSince) clearedMissingIds.push(c._id);
+    } else if (c.partnerStatus !== "departed") {
+      if (c.missingSince) confirmDepartedIds.push(c._id);
+      else firstMissIds.push(c._id);
+    }
+  }
+
+  const reactivated = await reactivateMany(reappearedIds);
+  if (clearedMissingIds.length) {
+    await Client.updateMany(
+      { _id: { $in: clearedMissingIds } },
+      { $set: { missingSince: null } },
+    );
+  }
+  if (firstMissIds.length) {
+    await Client.updateMany(
+      { _id: { $in: firstMissIds } },
+      { $set: { missingSince: new Date() } },
+    );
+  }
+  const departed = await markDepartedMany(confirmDepartedIds, "missing_from_list");
+  if (firstMissIds.length || departed) {
+    log.info(
+      `clients: ${firstMissIds.length} newly missing from the live list, ` +
+        `${departed} confirmed departed (missing 2+ runs)`,
+    );
+  }
+
   const newClients = cRes?.upsertedCount ?? 0;
   const updatedClients = cRes?.modifiedCount ?? 0;
   log.info(
@@ -83,6 +133,9 @@ export const syncClients: Job = async ({ signal }) => {
       newClients,
       updatedClients,
       logins: accountOps.length,
+      reactivated,
+      newlyMissing: firstMissIds.length,
+      confirmedDeparted: departed,
     },
   };
 };

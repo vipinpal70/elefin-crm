@@ -64,6 +64,17 @@ export function ClientsFilters({
           options={[["", "Any"], ...countries.map((c) => [c, c] as const)]}
         />
       </Field>
+      <Field label="Partner status">
+        <Select
+          name="partnerStatus"
+          value={q.partnerStatus}
+          options={[
+            ["with_us", "With us"],
+            ["departed", "Departed"],
+            ["all", "All"],
+          ]}
+        />
+      </Field>
 
       {q.sort !== "registered" ? <input type="hidden" name="sort" value={q.sort} /> : null}
       {q.dir !== "desc" ? <input type="hidden" name="dir" value={q.dir} /> : null}
@@ -132,6 +143,7 @@ function exportQs(q: ClientsQuery): string {
   if (q.funded) p.set("funded", q.funded);
   if (q.activity) p.set("activity", q.activity);
   if (q.country) p.set("country", q.country);
+  if (q.partnerStatus !== "with_us") p.set("partnerStatus", q.partnerStatus);
   if (q.sort !== "registered") p.set("sort", q.sort);
   if (q.dir !== "desc") p.set("dir", q.dir);
   const s = p.toString();

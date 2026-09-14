@@ -33,6 +33,7 @@ const TYPE_LABEL: Record<string, string> = {
   new_whale: "New whale",
   first_trade: "First trade",
   integration_down: "Integration down",
+  partner_code_changed: "Left referral code",
 };
 
 export default async function AlertsPage({

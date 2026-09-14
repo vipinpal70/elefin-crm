@@ -1,6 +1,6 @@
 import { Schema, model, models } from "../mongoose";
 import type { InferSchemaType, Model } from "mongoose";
-import { Decimal128, baseSchemaOptions, STATUSES } from "../shared";
+import { Decimal128, baseSchemaOptions, STATUSES, PARTNER_STATUSES } from "../shared";
 
 /**
  * One referred client. `_id` is the Elefin numeric client_id.
@@ -44,6 +44,19 @@ const clientSchema = new Schema(
     tradingLastTradeAt: { type: Date, default: null, index: true },
 
     commissionEarned: { type: Decimal128, default: "0" },
+
+    /**
+     * Whether this client is still affiliated with our referral code at
+     * Elefin. See apps/worker/src/jobs/partner-status.ts for how this gets
+     * set (accounts.items[].affiliated, disappearance from GET /clients, or
+     * GET /clients/{id} starting to fail for just this client).
+     */
+    partnerStatus: { type: String, enum: PARTNER_STATUSES, default: "active", index: true },
+    /** Which signal confirmed a departure: affiliated_false | missing_from_list | lookup_failed. */
+    partnerStatusReason: { type: String, default: null },
+    departedAt: { type: Date, default: null },
+    /** Set the first time a sync misses this client from GET /clients; cleared on reappearance or once confirmed departed. */
+    missingSince: { type: Date, default: null },
 
     /** Raw API payload of the last sync, kept for debugging / reprocessing. */
     raw: { type: Schema.Types.Mixed, select: false },

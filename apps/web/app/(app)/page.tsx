@@ -74,7 +74,10 @@ async function loadBook() {
 
 async function loadDashboardCore() {
   await connect();
-  const rows = await Client.find({}, PROJECTION).lean();
+  // Current-book KPIs: a client who has switched partner codes no longer
+  // counts, though their historical data (book_daily trend charts) is left
+  // alone — see partner-code-change-plan.md §9.1.
+  const rows = await Client.find({ partnerStatus: { $ne: "departed" } }, PROJECTION).lean();
 
   const clients = rows.map((r) => ({
     _id: r._id,

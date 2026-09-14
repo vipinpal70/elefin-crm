@@ -82,6 +82,10 @@ export function timeseriesSchemaOptions(
 export const STATUSES = ["active", "suspended", "inactive"] as const;
 export type Status = (typeof STATUSES)[number];
 
+/** Whether a client is still affiliated with our Elefin referral code. */
+export const PARTNER_STATUSES = ["active", "departed"] as const;
+export type PartnerStatus = (typeof PARTNER_STATUSES)[number];
+
 export const SIDES = ["buy", "sell"] as const;
 export type Side = (typeof SIDES)[number];
 

@@ -190,6 +190,9 @@ export function mapAccount(
       ),
       lastTradeAt: date(item.last_trade_at),
       commission: money(item.commission),
+      // Absent counts as still affiliated — that's what a normal account
+      // returns; only an explicit `false` should ever raise the flag.
+      affiliated: item.affiliated !== false,
       apiUpdatedAt: date(item.updated_at),
       raw: item,
       lastSyncedAt: new Date(),
