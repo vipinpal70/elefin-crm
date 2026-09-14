@@ -79,6 +79,8 @@ const isMasked = (s: unknown): boolean =>
 export interface MappedClient {
   _id: number;
   set: Record<string, unknown>;
+  /** Applied only when the upsert inserts a brand-new document. */
+  setOnInsert?: Record<string, unknown>;
 }
 
 export function mapClient(raw: RawClient): MappedClient {
@@ -87,6 +89,28 @@ export function mapClient(raw: RawClient): MappedClient {
   const trading = raw.trading ?? {};
   const logins = (accounts.logins ?? []).map(String);
   const items = accounts.items;
+
+  // trading.net_profit itself, or a sum of each account's own (confirmed-
+  // reliable) net_profit, are as good as Elefin's own numbers — safe to
+  // overwrite every sync. The client-wide balance-based estimate is only a
+  // rough guess (see derivedNetProfit) and is the *only* option the `/clients`
+  // list sync (no accounts.items[]) has while Elefin's bug is live — it must
+  // never overwrite a better value that sync-accounts (which does see
+  // items[]) already stored, or the two jobs fight over this field every
+  // cron tick. So a guess only ever applies via $setOnInsert, for a client
+  // this job has never seen before.
+  let netProfitValue: number | null;
+  let confident: boolean;
+  if (trading.net_profit != null) {
+    netProfitValue = trading.net_profit;
+    confident = true;
+  } else if (items?.length) {
+    netProfitValue = sumAccountNetProfit(items);
+    confident = true;
+  } else {
+    netProfitValue = derivedNetProfit(accounts.balance, funding.deposits, funding.withdrawals);
+    confident = false;
+  }
 
   return {
     _id: int(raw.client_id),
@@ -119,12 +143,7 @@ export function mapClient(raw: RawClient): MappedClient {
 
       tradingLots: money(trading.lots),
       tradingTrades: int(trading.trades),
-      tradingNetProfit: money(
-        trading.net_profit ??
-          (items?.length
-            ? sumAccountNetProfit(items)
-            : derivedNetProfit(accounts.balance, funding.deposits, funding.withdrawals)),
-      ),
+      ...(confident ? { tradingNetProfit: money(netProfitValue) } : {}),
       tradingLastTradeAt: date(trading.last_trade_at),
 
       commissionEarned: money(raw.commission_earned),
@@ -132,6 +151,7 @@ export function mapClient(raw: RawClient): MappedClient {
       raw,
       lastSyncedAt: new Date(),
     },
+    setOnInsert: confident ? undefined : { tradingNetProfit: money(netProfitValue) },
   };
 }
 

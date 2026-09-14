@@ -26,11 +26,14 @@ export const syncClients: Job = async ({ signal }) => {
   );
 
   const clientOps = rows.map((raw) => {
-    const { _id, set } = mapClient(raw);
+    const { _id, set, setOnInsert } = mapClient(raw);
     return {
       updateOne: {
         filter: { _id },
-        update: { $set: set, $setOnInsert: { firstSeenAt: new Date() } },
+        update: {
+          $set: set,
+          $setOnInsert: { firstSeenAt: new Date(), ...setOnInsert },
+        },
         upsert: true,
       },
     };
