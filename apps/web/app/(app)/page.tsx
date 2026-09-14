@@ -189,53 +189,84 @@ export default async function DashboardPage() {
               title="Clients"
               value={num(kpis.clientsTotal)}
               change={chg(deltas.signups, (n) => num(n))}
+              info="Total clients registered under your referral code(s). The change compares the trailing 30 days to the 30 days before that."
             />
             <KpiCard
               title="Funded"
               value={num(kpis.clientsFunded)}
               sub={`${pctStr(kpis.fundedRate)} of book`}
+              info="Clients who have made at least one deposit, and their share of the whole book."
             />
             <KpiCard
               title="Active traders"
               value={num(kpis.activeTraders)}
               sub={`${pctStr(kpis.activeRate)} of book`}
+              info="Clients who have placed at least one trade (lifetime — not necessarily recently), and their share of the whole book."
             />
             <KpiCard
               title="Net deposits"
               value={compactUsd(kpis.netDeposits)}
               change={chg(deltas.netFlow, compactUsd)}
+              info="Total deposits minus total withdrawals, book-wide. The change compares the trailing 30 days to the 30 days before that."
             />
             <KpiCard
               title="Commission"
               value={compactUsd(kpis.commissionEarned)}
               sub={`${usd(kpis.commissionPerLot)} / lot`}
               tone="positive"
+              info="Total commission earned to date across every client, and the average earned per lot traded."
             />
             <KpiCard
               title="Client PnL"
               value={compactUsd(kpis.clientPnl)}
               change={chg(deltas.clientPnl, compactUsd)}
               tone={kpis.clientPnl < 0 ? "negative" : "positive"}
+              info="Sum of every client's net trading profit/loss — what traders made or lost, not your commission. The change compares the trailing 30 days to the 30 days before that."
             />
           </div>
 
-          <div className="mt-2.5 grid grid-cols-2 gap-2.5 sm:grid-cols-4 xl:grid-cols-8">
+          <div className="mt-2.5 grid grid-cols-2 gap-2.5 sm:grid-cols-4 xl:grid-cols-7">
             <KpiCard
               title="Deposits"
               value={compactUsd(kpis.totalDeposits)}
               change={chg(deltas.deposits, compactUsd)}
+              info="Total amount deposited by all clients, book-wide. The change compares the trailing 30 days to the 30 days before that."
             />
             <KpiCard
               title="Withdrawals"
               value={compactUsd(kpis.totalWithdrawals)}
               change={chg(deltas.withdrawals, compactUsd, false)}
+              info="Total amount withdrawn by all clients, book-wide. The change compares the trailing 30 days to the 30 days before that."
             />
-            <KpiCard title="Total lost" value={compactUsd(kpis.totalLost)} tone="negative" />
-            <KpiCard title="Lots" value={num2(kpis.totalLots)} />
-            <KpiCard title="Trades" value={compactNum(kpis.totalTrades)} />
-            <KpiCard title="Avg deposit" value={compactUsd(kpis.avgDepositPerFunded)} />
-            <KpiCard title="Dormant" value={num(kpis.dormantClients)} />
-            <KpiCard title="Balance" value={compactUsd(kpis.balanceTotal)} />
+            <KpiCard
+              title="Total lost"
+              value={compactUsd(kpis.totalLost)}
+              tone="negative"
+              info="Sum of net losses only — added up across clients whose lifetime trading PnL is negative."
+            />
+            <KpiCard
+              title="Lots"
+              value={num2(kpis.totalLots)}
+              info="Total trading volume, in lots, across every client."
+            />
+            <KpiCard
+              title="Trades"
+              value={compactNum(kpis.totalTrades)}
+              info="Total number of closed trades across every client."
+            />
+            <KpiCard
+              title="Avg deposit"
+              value={compactUsd(kpis.avgDepositPerFunded)}
+              info="Average total deposit per funded client (total deposits ÷ funded clients)."
+            />
+            {/* Dormant KPI card hidden — commented out per request. dormantClients
+                is still computed in bookKpis() if this needs to come back. */}
+            {/* <KpiCard title="Dormant" value={num(kpis.dormantClients)} /> */}
+            <KpiCard
+              title="Balance"
+              value={compactUsd(kpis.balanceTotal)}
+              info="Sum of current account balances across every client."
+            />
           </div>
 
           <div className="mt-4 grid gap-3 lg:grid-cols-2">
