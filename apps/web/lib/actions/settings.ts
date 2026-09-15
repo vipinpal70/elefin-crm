@@ -127,7 +127,7 @@ export async function updateTargets(fd: FormData): Promise<void> {
   await audit(owner.sub, "config.targets", { entity: "config", entityId: "targets", meta: data });
   revalidatePath("/settings");
   await invalidate("config");
-  revalidatePath("/");
+  revalidatePath("/elefin/dashboard");
 }
 
 export async function updateAlertThresholds(fd: FormData): Promise<void> {
@@ -148,6 +148,21 @@ export async function updateAlertThresholds(fd: FormData): Promise<void> {
     { upsert: true },
   );
   await audit(owner.sub, "config.alert_thresholds", { entity: "config", entityId: "alerts", meta: data });
+  revalidatePath("/settings");
+  await invalidate("config");
+}
+
+export async function updateTagCatalogue(fd: FormData): Promise<void> {
+  const owner = await requireRole("owner");
+  const raw = String(fd.get("tags") ?? "");
+  const tags = [...new Set(raw.split(",").map((t) => t.trim()).filter(Boolean))];
+  await connect();
+  await AppConfig.updateOne(
+    { _id: "tags" },
+    { $set: { data: { catalogue: tags }, updatedBy: owner.sub } },
+    { upsert: true },
+  );
+  await audit(owner.sub, "config.tags", { entity: "config", entityId: "tags", meta: { tags } });
   revalidatePath("/settings");
   await invalidate("config");
 }

@@ -79,10 +79,10 @@ export function GlobalSearch() {
             setActive((i) => Math.max(i - 1, 0));
           } else if (e.key === "Enter") {
             if (hits.length) go(hits[active]);
-            else if (q.trim()) router.push(`/clients?q=${encodeURIComponent(q.trim())}`);
+            else if (q.trim()) router.push(`/elefin/clients?q=${encodeURIComponent(q.trim())}`);
           }
         }}
-        placeholder="Search clients, accounts…  ( / or ⌘K )"
+        placeholder="Search clients, accounts, XM traders…  ( / or ⌘K )"
         role="combobox"
         aria-expanded={open}
         aria-controls={listId}
@@ -108,7 +108,7 @@ export function GlobalSearch() {
                 }`}
               >
                 <span className="w-14 shrink-0 text-[10px] uppercase tracking-wide text-muted">
-                  {h.type}
+                  {h.type === "xm_trader" ? "xm" : h.type}
                 </span>
                 <span className="min-w-0 flex-1 truncate">{h.title}</span>
                 <span className="shrink-0 truncate text-[11px] text-muted">{h.subtitle}</span>

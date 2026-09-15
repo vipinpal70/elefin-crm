@@ -27,7 +27,7 @@ export async function requireSession(): Promise<SessionUser> {
 
 export async function requireRole(...roles: Role[]): Promise<SessionUser> {
   const session = await requireSession();
-  if (!roles.includes(session.role)) redirect("/");
+  if (!roles.includes(session.role)) redirect("/elefin/dashboard");
   return session;
 }
 

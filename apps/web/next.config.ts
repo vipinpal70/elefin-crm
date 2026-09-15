@@ -16,6 +16,12 @@ const nextConfig: NextConfig = {
   ],
   // These must not be bundled — mongoose/ioredis use dynamic requires.
   serverExternalPackages: ["mongoose", "bcryptjs", "ioredis"],
+  experimental: {
+    // Default 1MB is too small for roster/trade-history file uploads (imports/*).
+    serverActions: {
+      bodySizeLimit: "20mb",
+    },
+  },
 };
 
 export default nextConfig;

@@ -6,11 +6,13 @@ import {
   fetchCredentialStatus,
 } from "@/lib/settings-data";
 import { readTargetConfig } from "@/lib/targets-data";
+import { fetchTagCatalogue } from "@/lib/tags-data";
 import {
   setUserActive,
   resetUserPassword,
   updateAlertThresholds,
   updateTargets,
+  updateTagCatalogue,
 } from "@/lib/actions/settings";
 import { CreateUserForm, ChangePasswordForm } from "./forms";
 import { Card } from "@/components/ui/card";
@@ -24,12 +26,13 @@ export default async function SettingsPage() {
   const me = await requireSession();
   const isOwner = me.role === "owner";
 
-  const [users, thresholds, cred, audit, targets] = await Promise.all([
+  const [users, thresholds, cred, audit, targets, tagCatalogue] = await Promise.all([
     isOwner ? fetchUsers() : Promise.resolve([]),
     isOwner ? fetchAlertThresholds() : Promise.resolve([]),
     isOwner ? fetchCredentialStatus() : Promise.resolve(null),
     isOwner ? fetchAuditLog() : Promise.resolve([]),
     isOwner ? readTargetConfig() : Promise.resolve(null),
+    isOwner ? fetchTagCatalogue() : Promise.resolve([]),
   ]);
 
   return (
@@ -209,6 +212,24 @@ export default async function SettingsPage() {
               ))}
               <Button size="sm" type="submit">
                 Save thresholds
+              </Button>
+            </form>
+          </Section>
+
+          <Section title="Tag catalogue">
+            <p className="mb-2 text-[12px] text-muted">
+              Comma-separated. Shown as suggestions on client/trader tag editors
+              and roster uploads — both Elefin and XM.
+            </p>
+            <form action={updateTagCatalogue} className="flex flex-wrap items-end gap-2">
+              <input
+                name="tags"
+                type="text"
+                defaultValue={tagCatalogue.join(", ")}
+                className="h-8 min-w-[20rem] flex-1 rounded-md border border-rule-2 bg-raised px-2 text-[13px] text-ink"
+              />
+              <Button size="sm" type="submit">
+                Save tags
               </Button>
             </form>
           </Section>

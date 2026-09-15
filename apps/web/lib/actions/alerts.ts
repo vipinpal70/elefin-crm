@@ -15,7 +15,7 @@ export async function acknowledgeAlert(id: string): Promise<void> {
     { $set: { acknowledgedAt: new Date(), acknowledgedBy: new Types.ObjectId(s.sub) } },
   );
   await audit(s.sub, "alert.acknowledge", { entity: "alert", entityId: id });
-  revalidatePath("/alerts");
+  revalidatePath("/elefin/alerts");
   await invalidate("alerts");
 }
 
@@ -27,7 +27,7 @@ export async function unacknowledgeAlert(id: string): Promise<void> {
     { $set: { acknowledgedAt: null, acknowledgedBy: null } },
   );
   await audit(s.sub, "alert.reopen", { entity: "alert", entityId: id });
-  revalidatePath("/alerts");
+  revalidatePath("/elefin/alerts");
   await invalidate("alerts");
 }
 
@@ -40,6 +40,6 @@ export async function snoozeAlert(id: string, days: number): Promise<void> {
     { $set: { snoozedUntil: new Date(Date.now() + d * 86_400_000) } },
   );
   await audit(s.sub, "alert.snooze", { entity: "alert", entityId: id, meta: { days: d } });
-  revalidatePath("/alerts");
+  revalidatePath("/elefin/alerts");
   await invalidate("alerts");
 }

@@ -22,5 +22,5 @@ export async function requestSync(job: string): Promise<void> {
     });
     await audit(owner.sub, "sync.request", { entity: "job", entityId: job });
   }
-  revalidatePath("/sync");
+  revalidatePath("/elefin/sync");
 }

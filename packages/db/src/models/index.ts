@@ -17,3 +17,6 @@ export { WatchItem, type WatchItemDoc } from "./WatchItem";
 export { ClientNote, type ClientNoteDoc } from "./ClientNote";
 export { Digest, type DigestDoc } from "./Digest";
 export { ApiCallLog, type ApiCallLogDoc } from "./ApiCallLog";
+export { ExternalTrader, type ExternalTraderDoc } from "./ExternalTrader";
+export { ExternalTrade, type ExternalTradeDoc } from "./ExternalTrade";
+export { ImportRun, type ImportRunDoc } from "./ImportRun";

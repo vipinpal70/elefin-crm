@@ -21,7 +21,7 @@ export async function middleware(req: NextRequest) {
 
   if (session && isLogin) {
     const url = req.nextUrl.clone();
-    url.pathname = "/";
+    url.pathname = "/elefin/dashboard";
     url.search = "";
     return NextResponse.redirect(url);
   }

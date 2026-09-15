@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { connect, Client, Account } from "@elefin/db";
+import { connect, Client, Account, ExternalTrader } from "@elefin/db";
 import { cached } from "@elefin/cache";
 import { requireSession } from "@/lib/auth";
 import type { SearchHit } from "@/lib/search-types";
@@ -32,7 +32,7 @@ async function runSearch(q: string): Promise<SearchHit[]> {
     $or: [{ name: rx }, { email: rx }, ...(isNum ? [{ _id: asNum }] : [])],
   };
 
-  const [clients, accounts] = await Promise.all([
+  const [clients, accounts, traders] = await Promise.all([
     Client.find(clientFilter, {
       name: 1,
       email: 1,
@@ -45,6 +45,12 @@ async function runSearch(q: string): Promise<SearchHit[]> {
     Account.find({ _id: { $regex: `^${escapeRegex(q)}` } }, { clientId: 1, accountType: 1 })
       .limit(6)
       .lean(),
+    ExternalTrader.find(
+      { $or: [{ name: rx }, { email: rx }, { mt5Login: { $regex: `^${escapeRegex(q)}` } }] },
+      { name: 1, email: 1, brokerNormalized: 1, mt5Login: 1 },
+    )
+      .limit(6)
+      .lean(),
   ]);
 
   return [
@@ -55,14 +61,23 @@ async function runSearch(q: string): Promise<SearchHit[]> {
       subtitle: [c.referralCode, c.country, c.fundingIsFunded ? "funded" : null]
         .filter(Boolean)
         .join(" · "),
-      href: `/clients/${c._id}`,
+      href: `/elefin/clients/${c._id}`,
     })),
     ...accounts.map((a) => ({
       type: "account" as const,
       id: String(a._id),
       title: `Account ${a._id}`,
       subtitle: `${a.accountType ?? "MT5"} · client #${a.clientId}`,
-      href: `/accounts/${a._id}/history`,
+      href: `/elefin/accounts/${a._id}/history`,
+    })),
+    ...traders.map((t) => ({
+      type: "xm_trader" as const,
+      id: String(t._id),
+      title: t.name || t.email || `Login ${t.mt5Login}`,
+      subtitle: [t.brokerNormalized, t.mt5Login ? `login ${t.mt5Login}` : null]
+        .filter(Boolean)
+        .join(" · "),
+      href: `/xm/clients/${t._id}`,
     })),
   ];
 }

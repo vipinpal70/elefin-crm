@@ -38,6 +38,6 @@ export async function loginAction(
   await audit(user.sub, "auth.login", { entity: "user", entityId: user.sub });
 
   const dest =
-    parsed.data.next && parsed.data.next.startsWith("/") ? parsed.data.next : "/";
+    parsed.data.next && parsed.data.next.startsWith("/") ? parsed.data.next : "/elefin/dashboard";
   redirect(dest);
 }

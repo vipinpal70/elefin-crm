@@ -25,7 +25,7 @@ export async function toggleWatch(clientId: number): Promise<boolean> {
     entity: "client",
     entityId: String(clientId),
   });
-  revalidatePath(`/clients/${clientId}`);
-  revalidatePath("/alerts");
+  revalidatePath(`/elefin/clients/${clientId}`);
+  revalidatePath("/elefin/alerts");
   return watched;
 }

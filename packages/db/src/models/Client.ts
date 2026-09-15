@@ -58,6 +58,9 @@ const clientSchema = new Schema(
     /** Set the first time a sync misses this client from GET /clients; cleared on reappearance or once confirmed departed. */
     missingSince: { type: Date, default: null },
 
+    /** Freeform labels, editable from Settings' tag catalogue (sheet-plan.md §6). */
+    tags: { type: [String], default: [] },
+
     /** Raw API payload of the last sync, kept for debugging / reprocessing. */
     raw: { type: Schema.Types.Mixed, select: false },
 
@@ -69,6 +72,7 @@ const clientSchema = new Schema(
 
 clientSchema.index({ referralCode: 1, registeredAt: -1 });
 clientSchema.index({ logins: 1 });
+clientSchema.index({ tags: 1 });
 clientSchema.index({ name: "text", email: "text" }, { name: "client_text" });
 
 export type ClientDoc = InferSchemaType<typeof clientSchema> & { _id: number };

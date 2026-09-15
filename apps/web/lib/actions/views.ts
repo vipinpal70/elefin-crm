@@ -29,13 +29,13 @@ export async function saveView(
     { $set: { filters: { query: parsed.data.query.replace(/^\?/, "") } } },
     { upsert: true },
   );
-  revalidatePath(`/${parsed.data.page}`);
+  revalidatePath(`/elefin/${parsed.data.page}`);
 }
 
 export async function deleteView(id: string): Promise<void> {
   const s = await requireSession();
   await connect();
   await SavedView.deleteOne({ _id: id, userId: new Types.ObjectId(s.sub) });
-  revalidatePath("/clients");
-  revalidatePath("/funding");
+  revalidatePath("/elefin/clients");
+  revalidatePath("/elefin/funding");
 }

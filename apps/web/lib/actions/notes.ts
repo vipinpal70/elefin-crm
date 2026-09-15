@@ -28,8 +28,8 @@ export async function addNote(clientId: number, fd: FormData): Promise<void> {
         : null,
   });
   await audit(s.sub, "note.add", { entity: "client", entityId: String(clientId) });
-  revalidatePath(`/clients/${clientId}`);
-  revalidatePath("/alerts");
+  revalidatePath(`/elefin/clients/${clientId}`);
+  revalidatePath("/elefin/alerts");
   await invalidate("notes");
 }
 
@@ -44,8 +44,8 @@ export async function toggleNoteDone(noteId: string): Promise<void> {
     entity: "note",
     entityId: noteId,
   });
-  revalidatePath(`/clients/${note.clientId}`);
-  revalidatePath("/alerts");
+  revalidatePath(`/elefin/clients/${note.clientId}`);
+  revalidatePath("/elefin/alerts");
   await invalidate("notes");
 }
 
@@ -58,7 +58,7 @@ export async function deleteNote(noteId: string): Promise<void> {
   if (String(note.authorId) !== s.sub && s.role !== "owner") return;
   await ClientNote.deleteOne({ _id: noteId });
   await audit(s.sub, "note.delete", { entity: "client", entityId: String(note.clientId) });
-  revalidatePath(`/clients/${note.clientId}`);
-  revalidatePath("/alerts");
+  revalidatePath(`/elefin/clients/${note.clientId}`);
+  revalidatePath("/elefin/alerts");
   await invalidate("notes");
 }

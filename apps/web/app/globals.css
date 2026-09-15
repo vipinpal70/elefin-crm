@@ -34,6 +34,10 @@
   --color-ok-bg: var(--ok-bg);
   --color-err: var(--err);
   --color-err-bg: var(--err-bg);
+  --color-xm-accent: var(--xm-accent);
+  --color-xm-accent-bg: var(--xm-accent-bg);
+  --color-tc-accent: var(--tc-accent);
+  --color-tc-accent-bg: var(--tc-accent-bg);
 
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
@@ -76,6 +80,10 @@
   --ok-bg: #e6f4ee;
   --err: #c4362f;
   --err-bg: #fbe9e7;
+  --xm-accent: #0d7d6f;
+  --xm-accent-bg: #e1f3f0;
+  --tc-accent: #a8710a;
+  --tc-accent-bg: #fbf0dc;
 
   --chart-1: #2a78d6;
   --chart-2: #eb6834;
@@ -108,6 +116,10 @@
     --ok-bg: #10261d;
     --err: #ed7f76;
     --err-bg: #2c1512;
+    --xm-accent: #4fd6c4;
+    --xm-accent-bg: #113330;
+    --tc-accent: #e3ac54;
+    --tc-accent-bg: #332508;
 
     --chart-1: #3987e5;
     --chart-2: #d95926;
@@ -140,6 +152,10 @@
   --ok-bg: #10261d;
   --err: #ed7f76;
   --err-bg: #2c1512;
+  --xm-accent: #4fd6c4;
+  --xm-accent-bg: #113330;
+  --tc-accent: #e3ac54;
+  --tc-accent-bg: #332508;
 
   --chart-1: #3987e5;
   --chart-2: #d95926;

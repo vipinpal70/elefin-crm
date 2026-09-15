@@ -28,6 +28,7 @@ export interface ClientsQuery {
   activity?: "traded" | "never" | "dormant30" | "dormant60" | "dormant90";
   country?: string;
   q?: string;
+  tag?: string;
   /** "with_us" (default) hides departed clients; "departed" shows only them; "all" shows everyone. */
   partnerStatus: "with_us" | "departed" | "all";
 }
@@ -56,6 +57,7 @@ export function parseClientsQuery(sp: SP): ClientsQuery {
     ).find((a) => a === one(sp.activity)),
     country: one(sp.country) || undefined,
     q: (one(sp.q) || "").trim() || undefined,
+    tag: one(sp.tag) || undefined,
     partnerStatus:
       (["with_us", "departed", "all"] as const).find(
         (p) => p === one(sp.partnerStatus),
@@ -70,6 +72,7 @@ export function buildFilter(q: ClientsQuery): FilterQuery<Record<string, unknown
   if (q.code) filter.referralCode = q.code;
   if (q.status) filter.status = q.status;
   if (q.country) filter.country = q.country;
+  if (q.tag) filter.tags = q.tag;
   if (q.funded === "yes") filter.fundingIsFunded = true;
   if (q.funded === "no") filter.fundingIsFunded = false;
   if (q.partnerStatus === "departed") filter.partnerStatus = "departed";
@@ -134,6 +137,7 @@ export function withParams(current: ClientsQuery, patch: Partial<ClientsQuery>):
   if (merged.activity) p.set("activity", merged.activity);
   if (merged.country) p.set("country", merged.country);
   if (merged.q) p.set("q", merged.q);
+  if (merged.tag) p.set("tag", merged.tag);
   if (merged.partnerStatus !== "with_us") p.set("partnerStatus", merged.partnerStatus);
   const s = p.toString();
   return s ? `?${s}` : "";

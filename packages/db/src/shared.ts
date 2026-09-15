@@ -113,3 +113,18 @@ export type SyncStatus = (typeof SYNC_STATUSES)[number];
 
 export const ALERT_SEVERITIES = ["info", "warning", "critical"] as const;
 export type AlertSeverity = (typeof ALERT_SEVERITIES)[number];
+
+/** Normalized broker bucket for an uploaded roster row — see sheet-plan.md §5. */
+export const BROKERS = ["elefin", "xm", "other", "unknown"] as const;
+export type Broker = (typeof BROKERS)[number];
+
+/** How an ExternalTrader got linked to a real Elefin Client, if at all. */
+export const MATCH_METHODS = ["mt5_login", "email", "manual"] as const;
+export type MatchMethod = (typeof MATCH_METHODS)[number];
+
+/** Which sheet template was uploaded. One column mapping per kind (sheet-plan.md §4.2). */
+export const IMPORT_KINDS = ["roster", "xm_trades"] as const;
+export type ImportKind = (typeof IMPORT_KINDS)[number];
+
+export const IMPORT_STATUSES = ["preview", "committed", "failed"] as const;
+export type ImportStatus = (typeof IMPORT_STATUSES)[number];

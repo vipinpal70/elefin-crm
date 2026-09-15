@@ -9,7 +9,7 @@ export default async function LoginPage({
 }: {
   searchParams: Promise<{ next?: string }>;
 }) {
-  if (await getSession()) redirect("/");
+  if (await getSession()) redirect("/elefin/dashboard");
   const { next } = await searchParams;
 
   return (

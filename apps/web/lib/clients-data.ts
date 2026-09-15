@@ -22,6 +22,7 @@ const LIST_PROJECTION = {
   accountsCount: 1,
   partnerStatus: 1,
   departedAt: 1,
+  tags: 1,
 } as const;
 
 export interface ClientRow {
@@ -44,6 +45,7 @@ export interface ClientRow {
   commissionEarned: number;
   accountsCount: number;
   openNotes: number;
+  tags: string[];
 }
 
 export interface ClientsResult {
@@ -80,7 +82,9 @@ async function loadClients(q: ClientsQuery): Promise<ClientsResult> {
 
   return {
     rows: rows.map((r) => ({
-      ...plain<Omit<ClientRow, "openNotes">>(r),
+      ...plain<Omit<ClientRow, "openNotes" | "tags">>(r),
+      // pre-existing docs from before the `tags` field was added have none
+      tags: r.tags ?? [],
       openNotes: noteCounts.get(r._id) ?? 0,
     })),
     total,

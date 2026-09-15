@@ -29,6 +29,7 @@ const COLUMNS: Array<[string, (r: Record<string, unknown>) => unknown]> = [
   ["net_pnl", (r) => r.tradingNetProfit],
   ["last_trade_at", (r) => r.tradingLastTradeAt],
   ["commission_earned", (r) => r.commissionEarned],
+  ["tags", (r) => (Array.isArray(r.tags) ? r.tags.join("|") : "")],
 ];
 
 const cell = (v: unknown): string => {
