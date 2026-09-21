@@ -23,6 +23,7 @@ const ITEMS: NavItem[] = [
   { href: "/elefin/positions", label: "Positions", group: "Elefin" },
   { href: "/elefin/referral-codes", label: "Referral codes", group: "Elefin" },
   { href: "/elefin/alerts", label: "Alerts", group: "Elefin" },
+  { href: "/elefin/notes", label: "Notes & follow-ups", group: "Elefin" },
 
   { href: "/xm/dashboard", label: "Dashboard", group: "XM" },
   { href: "/xm/clients", label: "Clients", group: "XM" },

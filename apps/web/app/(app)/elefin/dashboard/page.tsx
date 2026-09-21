@@ -276,9 +276,14 @@ export default async function DashboardPage() {
             <Card className="lg:col-span-2">
               <div className="mb-2 flex items-center justify-between">
                 <CardHead>Needs attention</CardHead>
-                <Link href="/elefin/alerts" className="text-[11px] text-accent hover:underline">
-                  all alerts →
-                </Link>
+                <span className="flex gap-2 text-[11px]">
+                  <Link href="/elefin/alerts" className="text-accent hover:underline">
+                    all alerts →
+                  </Link>
+                  <Link href="/elefin/notes" className="text-accent hover:underline">
+                    notes →
+                  </Link>
+                </span>
               </div>
               {topAlerts.rows.length === 0 && followUps.length === 0 ? (
                 <p className="text-[13px] text-muted">Nothing urgent. Nice.</p>

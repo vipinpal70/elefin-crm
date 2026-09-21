@@ -195,9 +195,14 @@ export default async function AlertsPage({
         </table>
       </Card>
 
-      <h2 className="mb-2 mt-6 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">
-        Open follow-ups ({followUps.length})
-      </h2>
+      <div className="mb-2 mt-6 flex items-baseline justify-between">
+        <h2 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">
+          Open follow-ups ({followUps.length})
+        </h2>
+        <Link href="/elefin/notes" className="text-[11px] text-accent hover:underline">
+          all notes →
+        </Link>
+      </div>
       <Card className="overflow-x-auto p-0">
         <table className="w-full min-w-[640px] text-[13px]">
           <tbody>
