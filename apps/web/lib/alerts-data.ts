@@ -18,17 +18,25 @@ export interface AlertRow {
   snoozedUntil: string | null;
 }
 
+const SORTS = ["severity", "type", "age"] as const;
+export type AlertsSortKey = (typeof SORTS)[number];
+
 export interface AlertsQuery {
   type?: string;
   severity?: string;
   showResolved: boolean; // include acknowledged / snoozed
+  sort: AlertsSortKey;
+  dir: "asc" | "desc";
 }
 
 export function parseAlertsQuery(sp: SP): AlertsQuery {
+  const sort = one(sp.sort);
   return {
     type: one(sp.type),
     severity: one(sp.severity),
     showResolved: one(sp.show) === "all",
+    sort: sort && (SORTS as readonly string[]).includes(sort) ? (sort as AlertsSortKey) : "severity",
+    dir: one(sp.dir) === "desc" ? "desc" : "asc",
   };
 }
 
@@ -146,16 +154,30 @@ async function loadAlerts(q: AlertsQuery): Promise<AlertsResult> {
     ]),
   );
 
+  const dir = q.dir === "desc" ? -1 : 1;
+  const val = (r: AlertRow): string | number => {
+    switch (q.sort) {
+      case "type":
+        return r.type;
+      case "age":
+        return r.createdAt ? new Date(r.createdAt).getTime() : 0;
+      case "severity":
+      default:
+        return sevRank[r.severity];
+    }
+  };
+
   const rows: AlertRow[] = docs
     .map((d) => {
       const p = plain<Omit<AlertRow, "clientName">>(d);
       return { ...p, clientName: p.clientId != null ? names.get(p.clientId) ?? "" : "" };
     })
-    .sort(
-      (a, b) =>
-        sevRank[a.severity] - sevRank[b.severity] ||
-        (b.createdAt ?? "").localeCompare(a.createdAt ?? ""),
-    );
+    .sort((a, b) => {
+      const av = val(a);
+      const bv = val(b);
+      const primary = typeof av === "string" || typeof bv === "string" ? String(av).localeCompare(String(bv)) : av - bv;
+      return primary * dir || (b.createdAt ?? "").localeCompare(a.createdAt ?? "");
+    });
 
   const counts = { critical: 0, warning: 0, info: 0, total: openDocs.length };
   for (const d of openDocs) counts[d.severity as "critical" | "warning" | "info"] += 1;

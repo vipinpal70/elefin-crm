@@ -28,7 +28,7 @@ export default async function TcClientsPage({ searchParams }: { searchParams: Pr
       </div>
 
       <TcFilters q={q} tagCatalogue={tagCatalogue} total={rows.length} />
-      <TcTable rows={rows} />
+      <TcTable rows={rows} q={q} />
     </div>
   );
 }

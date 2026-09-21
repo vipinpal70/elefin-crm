@@ -6,11 +6,16 @@ import { plain } from "./serialize";
 
 export type SP = Record<string, string | string[] | undefined>;
 
+const SORTS = ["name", "email", "mt5Login", "tradingCapital", "trades", "lots", "commission"] as const;
+export type XmSortKey = (typeof SORTS)[number];
+
 export interface XmClientsQuery {
   page: number;
   perPage: number;
   q?: string;
   tag?: string;
+  sort: XmSortKey;
+  dir: "asc" | "desc";
 }
 
 const one = (v: string | string[] | undefined): string | undefined =>
@@ -21,11 +26,14 @@ export function parseXmClientsQuery(sp: SP): XmClientsQuery {
     const n = Number(v);
     return Number.isFinite(n) && n > 0 ? Math.floor(n) : def;
   };
+  const sort = one(sp.sort);
   return {
     page: num(one(sp.page), 1),
     perPage: Math.min(num(one(sp.perPage), 50), 200),
     q: (one(sp.q) || "").trim() || undefined,
     tag: one(sp.tag) || undefined,
+    sort: sort && (SORTS as readonly string[]).includes(sort) ? (sort as XmSortKey) : "name",
+    dir: one(sp.dir) === "desc" ? "desc" : "asc",
   };
 }
 
@@ -40,6 +48,8 @@ export function withXmParams(current: XmClientsQuery, patch: Partial<XmClientsQu
   if (merged.page > 1) p.set("page", String(merged.page));
   if (merged.q) p.set("q", merged.q);
   if (merged.tag) p.set("tag", merged.tag);
+  if (merged.sort !== "name") p.set("sort", merged.sort);
+  if (merged.dir !== "asc") p.set("dir", merged.dir);
   const s = p.toString();
   return s ? `?${s}` : "";
 }
@@ -67,11 +77,23 @@ export interface XmClientsResult {
   total: number;
 }
 
+/** Cap on how many XM traders a single filter set can match — comfortably above real book size. */
+const XM_ROWS_CAP = 5000;
+
 export async function fetchXmClients(q: XmClientsQuery): Promise<XmClientsResult> {
-  return cached(`xm-clients-list:${hashKey(q)}`, { ttl: 60, tags: ["clients"] }, () => loadXmClients(q));
+  const all = await fetchAllXmClientRows(q);
+  const start = (q.page - 1) * q.perPage;
+  return { rows: all.slice(start, start + q.perPage), total: all.length };
 }
 
-async function loadXmClients(q: XmClientsQuery): Promise<XmClientsResult> {
+/** Every row matching the filter, sorted — used by the paginated list and by CSV export alike. */
+export async function fetchAllXmClientRows(q: XmClientsQuery): Promise<XmClientRow[]> {
+  return cached(`xm-clients-all:${hashKey({ q: q.q, tag: q.tag, sort: q.sort, dir: q.dir })}`, { ttl: 60, tags: ["clients"] }, () =>
+    loadAllXmClientRows(q),
+  );
+}
+
+async function loadAllXmClientRows(q: XmClientsQuery): Promise<XmClientRow[]> {
   await connect();
   const filter: Record<string, unknown> = { brokerNormalized: "xm", confirmed: true };
   if (q.tag) filter.tags = q.tag;
@@ -80,22 +102,17 @@ async function loadXmClients(q: XmClientsQuery): Promise<XmClientsResult> {
     filter.$or = [{ name: rx }, { email: rx }, { mt5Login: { $regex: `^${escapeRegex(q.q)}` } }];
   }
 
-  const [rows, total] = await Promise.all([
-    ExternalTrader.find(filter, {
-      name: 1,
-      email: 1,
-      mt5Login: 1,
-      tradingCapital: 1,
-      tags: 1,
-      linkedClientId: 1,
-      needsReview: 1,
-    })
-      .sort({ _id: -1 })
-      .skip((q.page - 1) * q.perPage)
-      .limit(q.perPage)
-      .lean(),
-    ExternalTrader.countDocuments(filter),
-  ]);
+  const rows = await ExternalTrader.find(filter, {
+    name: 1,
+    email: 1,
+    mt5Login: 1,
+    tradingCapital: 1,
+    tags: 1,
+    linkedClientId: 1,
+    needsReview: 1,
+  })
+    .limit(XM_ROWS_CAP)
+    .lean();
 
   const logins = rows.map((r) => r.mt5Login).filter((x): x is string => !!x);
   const stats = logins.length
@@ -113,18 +130,46 @@ async function loadXmClients(q: XmClientsQuery): Promise<XmClientsResult> {
     : [];
   const statsByLogin = new Map(stats.map((s) => [s._id, s]));
 
-  return {
-    rows: rows.map((r) => {
-      const s = r.mt5Login ? statsByLogin.get(r.mt5Login) : undefined;
-      return {
-        ...plain<Omit<XmClientRow, "trades" | "lots" | "commission">>(r),
-        trades: s?.trades ?? 0,
-        lots: s?.lots ?? 0,
-        commission: s?.commission ?? 0,
-      };
-    }),
-    total,
+  const merged = rows.map((r) => {
+    const s = r.mt5Login ? statsByLogin.get(r.mt5Login) : undefined;
+    return plain<XmClientRow>({
+      ...r,
+      trades: s?.trades ?? 0,
+      lots: s?.lots ?? 0,
+      commission: s?.commission ?? 0,
+    });
+  });
+
+  const dir = q.dir === "desc" ? -1 : 1;
+  const val = (r: XmClientRow): string | number => {
+    switch (q.sort) {
+      case "email":
+        return r.email ?? "";
+      case "mt5Login":
+        return r.mt5Login ?? "";
+      case "tradingCapital":
+        return r.tradingCapital ?? -Infinity;
+      case "trades":
+        return r.trades;
+      case "lots":
+        return r.lots;
+      case "commission":
+        return r.commission;
+      case "name":
+      default:
+        return r.name || "";
+    }
   };
+  merged.sort((a, b) => {
+    const av = val(a);
+    const bv = val(b);
+    if (typeof av === "string" || typeof bv === "string") {
+      return String(av).localeCompare(String(bv)) * dir;
+    }
+    return (av - bv) * dir;
+  });
+
+  return merged;
 }
 
 /* ── client profile ──────────────────────────────────────────────── */

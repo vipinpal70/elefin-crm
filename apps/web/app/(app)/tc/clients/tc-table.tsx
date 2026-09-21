@@ -1,12 +1,41 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import Link from "next/link";
 import { confirmTraderAction, confirmManyTradersAction } from "@/lib/actions/imports";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
-import type { TcRow } from "@/lib/tc-data";
+import type { TcQuery, TcRow, TcSortKey } from "@/lib/tc-data";
 
-export function TcTable({ rows }: { rows: TcRow[] }) {
+// Kept local (not imported from lib/tc-data.ts) so this client component never
+// pulls that file's mongoose-backed runtime code into the browser bundle.
+function tcSortHref(q: TcQuery, col: TcSortKey, dir: "asc" | "desc"): string {
+  const p = new URLSearchParams();
+  if (q.q) p.set("q", q.q);
+  if (q.broker) p.set("broker", q.broker);
+  if (q.flagged) p.set("flagged", "1");
+  if (q.tag) p.set("tag", q.tag);
+  if (col !== "needsReview") p.set("sort", col);
+  if (dir !== "asc") p.set("dir", dir);
+  const s = p.toString();
+  return `/tc/clients${s ? `?${s}` : ""}`;
+}
+
+function SortTh({ q, col, label }: { q: TcQuery; col: TcSortKey; label: string }) {
+  const active = q.sort === col;
+  const nextDir = active && q.dir === "asc" ? "desc" : "asc";
+  const arrow = active ? (q.dir === "desc" ? " ↓" : " ↑") : "";
+  return (
+    <th className="px-3 py-1.5 font-medium">
+      <Link href={tcSortHref(q, col, nextDir)} className={cn("hover:text-ink", active && "text-ink")}>
+        {label}
+        {arrow}
+      </Link>
+    </th>
+  );
+}
+
+export function TcTable({ rows, q }: { rows: TcRow[]; q: TcQuery }) {
   const [pending, start] = useTransition();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [done, setDone] = useState<Record<string, "elefin" | "xm">>({});
@@ -102,12 +131,12 @@ export function TcTable({ rows }: { rows: TcRow[] }) {
                   aria-label="Select all"
                 />
               </th>
-              <th className="px-3 py-1.5 font-medium">Name</th>
-              <th className="px-3 py-1.5 font-medium">Email</th>
-              <th className="px-3 py-1.5 font-medium">MT5 login</th>
-              <th className="px-3 py-1.5 font-medium">Detected broker</th>
-              <th className="px-3 py-1.5 font-medium">Suggested match</th>
-              <th className="px-3 py-1.5 font-medium">Review</th>
+              <SortTh q={q} col="name" label="Name" />
+              <SortTh q={q} col="email" label="Email" />
+              <SortTh q={q} col="mt5Login" label="MT5 login" />
+              <SortTh q={q} col="brokerNormalized" label="Detected broker" />
+              <SortTh q={q} col="linkedClientName" label="Suggested match" />
+              <SortTh q={q} col="needsReview" label="Review" />
               <th className="px-3 py-1.5 font-medium">Confirm</th>
             </tr>
           </thead>

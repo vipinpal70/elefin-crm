@@ -1,5 +1,11 @@
 import Link from "next/link";
-import { fetchXmClients, parseXmClientsQuery, withXmParams, type XmClientsQuery } from "@/lib/xm-data";
+import {
+  fetchXmClients,
+  parseXmClientsQuery,
+  withXmParams,
+  type XmClientsQuery,
+  type XmSortKey,
+} from "@/lib/xm-data";
 import { fetchTagCatalogue } from "@/lib/tags-data";
 import { num, num2, usd } from "@/lib/format";
 import { cn } from "@/lib/cn";
@@ -62,7 +68,10 @@ export default async function XmClientsPage({
           Reset
         </Link>
         <span className="ml-auto self-center text-xs text-muted">
-          {total.toLocaleString()} match{total === 1 ? "" : "es"}
+          {total.toLocaleString()} match{total === 1 ? "" : "es"} ·{" "}
+          <a className="text-accent hover:underline" href={`/api/xm/clients/export${withXmParams(q, {})}`}>
+            Export CSV
+          </a>
         </span>
       </form>
 
@@ -70,12 +79,12 @@ export default async function XmClientsPage({
         <table className="w-full min-w-[840px] text-[13px]">
           <thead>
             <tr className="border-b border-rule-2 text-left text-[11px] uppercase tracking-[0.08em] text-muted">
-              <th className="px-3 py-1.5 font-medium">Name</th>
-              <th className="px-3 py-1.5 font-medium">Email</th>
-              <th className="px-3 py-1.5 font-medium">MT5 login</th>
-              <th className="px-3 py-1.5 font-medium text-right">Trades</th>
-              <th className="px-3 py-1.5 font-medium text-right">Lots</th>
-              <th className="px-3 py-1.5 font-medium text-right">Commission</th>
+              <SortTh q={q} col="name" label="Name" />
+              <SortTh q={q} col="email" label="Email" />
+              <SortTh q={q} col="mt5Login" label="MT5 login" />
+              <SortTh q={q} col="trades" label="Trades" align="right" />
+              <SortTh q={q} col="lots" label="Lots" align="right" />
+              <SortTh q={q} col="commission" label="Commission" align="right" />
               <th className="px-3 py-1.5 font-medium">Tags</th>
               <th className="px-3 py-1.5 font-medium">Elefin</th>
             </tr>
@@ -139,6 +148,33 @@ export default async function XmClientsPage({
         </div>
       </div>
     </div>
+  );
+}
+
+function SortTh({
+  q,
+  col,
+  label,
+  align = "left",
+}: {
+  q: XmClientsQuery;
+  col: XmSortKey;
+  label: string;
+  align?: "left" | "right";
+}) {
+  const active = q.sort === col;
+  const nextDir = active && q.dir === "desc" ? "asc" : "desc";
+  const arrow = active ? (q.dir === "desc" ? " ↓" : " ↑") : "";
+  return (
+    <th className={cn("whitespace-nowrap px-3 py-1.5 font-medium", align === "right" && "text-right")}>
+      <Link
+        href={`/xm/clients${withXmParams(q, { sort: col, dir: nextDir })}`}
+        className={cn("hover:text-ink", active && "text-ink")}
+      >
+        {label}
+        {arrow}
+      </Link>
+    </th>
   );
 }
 

@@ -5,11 +5,16 @@ import { plain } from "./serialize";
 
 export type SP = Record<string, string | string[] | undefined>;
 
+const SORTS = ["name", "email", "mt5Login", "brokerNormalized", "linkedClientName", "needsReview"] as const;
+export type TcSortKey = (typeof SORTS)[number];
+
 export interface TcQuery {
   q?: string;
   broker?: Broker;
   flagged?: boolean;
   tag?: string;
+  sort: TcSortKey;
+  dir: "asc" | "desc";
 }
 
 const one = (v: string | string[] | undefined): string | undefined =>
@@ -19,11 +24,14 @@ const BROKER_VALUES: readonly string[] = ["elefin", "xm", "other", "unknown"];
 
 export function parseTcQuery(sp: SP): TcQuery {
   const broker = one(sp.broker);
+  const sort = one(sp.sort);
   return {
     q: (one(sp.q) || "").trim() || undefined,
     broker: broker && BROKER_VALUES.includes(broker) ? (broker as Broker) : undefined,
     flagged: one(sp.flagged) === "1" ? true : undefined,
     tag: one(sp.tag) || undefined,
+    sort: sort && (SORTS as readonly string[]).includes(sort) ? (sort as TcSortKey) : "needsReview",
+    dir: one(sp.dir) === "desc" ? "desc" : "asc",
   };
 }
 
@@ -34,6 +42,8 @@ export function withTcParams(current: TcQuery, patch: Partial<TcQuery>): string 
   if (merged.broker) p.set("broker", merged.broker);
   if (merged.flagged) p.set("flagged", "1");
   if (merged.tag) p.set("tag", merged.tag);
+  if (merged.sort !== "needsReview") p.set("sort", merged.sort);
+  if (merged.dir !== "asc") p.set("dir", merged.dir);
   const s = p.toString();
   return s ? `?${s}` : "";
 }
@@ -60,7 +70,9 @@ export interface TcRow {
   reviewReason: string | null;
 }
 
-export async function fetchTcRows(q: TcQuery = {}): Promise<TcRow[]> {
+const TC_ROWS_CAP = 1000;
+
+export async function fetchTcRows(q: TcQuery = { sort: "needsReview", dir: "asc" }): Promise<TcRow[]> {
   await connect();
   const filter: Record<string, unknown> = { confirmed: false };
   if (q.broker) filter.brokerNormalized = q.broker;
@@ -86,8 +98,7 @@ export async function fetchTcRows(q: TcQuery = {}): Promise<TcRow[]> {
     needsReview: 1,
     reviewReason: 1,
   })
-    .sort({ needsReview: 1, _id: -1 })
-    .limit(1000)
+    .limit(TC_ROWS_CAP)
     .lean();
 
   const clientIds = [...new Set(rows.map((r) => r.linkedClientId).filter((x): x is number => x != null))];
@@ -96,12 +107,39 @@ export async function fetchTcRows(q: TcQuery = {}): Promise<TcRow[]> {
     : [];
   const nameById = new Map(clients.map((c) => [c._id, c.name || `#${c._id}`]));
 
-  return rows.map((r) =>
+  const merged = rows.map((r) =>
     plain<TcRow>({
       ...r,
       linkedClientName: r.linkedClientId != null ? (nameById.get(r.linkedClientId) ?? null) : null,
     }),
   );
+
+  const dir = q.dir === "desc" ? -1 : 1;
+  const val = (r: TcRow): string | number => {
+    switch (q.sort) {
+      case "email":
+        return r.email ?? "";
+      case "mt5Login":
+        return r.mt5Login ?? "";
+      case "brokerNormalized":
+        return r.brokerNormalized;
+      case "linkedClientName":
+        return r.linkedClientName ?? "";
+      case "needsReview":
+        return r.needsReview ? 1 : 0;
+      case "name":
+      default:
+        return r.name || "";
+    }
+  };
+  merged.sort((a, b) => {
+    const av = val(a);
+    const bv = val(b);
+    const primary = typeof av === "string" || typeof bv === "string" ? String(av).localeCompare(String(bv)) : av - bv;
+    return primary * dir || Number(a._id > b._id) - Number(a._id < b._id);
+  });
+
+  return merged;
 }
 
 /* ── confirm ──────────────────────────────────────────────────────── */

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { TcQuery } from "@/lib/tc-data";
+import { withTcParams, type TcQuery } from "@/lib/tc-data";
 
 const BROKERS = [
   ["", "Any"],
@@ -68,7 +68,10 @@ export function TcFilters({
       </Link>
 
       <span className="ml-auto self-center text-xs text-muted">
-        {total.toLocaleString()} match{total === 1 ? "" : "es"}
+        {total.toLocaleString()} match{total === 1 ? "" : "es"} ·{" "}
+        <a className="text-accent hover:underline" href={`/api/tc/clients/export${withTcParams(q, {})}`}>
+          Export CSV
+        </a>
       </span>
     </form>
   );

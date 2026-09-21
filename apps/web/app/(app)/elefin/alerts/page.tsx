@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requireSession } from "@/lib/auth";
-import { fetchAlerts, parseAlertsQuery } from "@/lib/alerts-data";
+import { fetchAlerts, parseAlertsQuery, type AlertsQuery, type AlertsSortKey } from "@/lib/alerts-data";
 import { fetchWatchlist } from "@/lib/watchlist";
 import { fetchOpenFollowUps } from "@/lib/notes-data";
 import type { SP } from "@/lib/clients-query";
@@ -52,10 +52,27 @@ export default async function AlertsPage({
 
   const qs = (patch: Record<string, string | undefined>) => {
     const p = new URLSearchParams();
-    const merged = { type: q.type, severity: q.severity, show: q.showResolved ? "all" : undefined, ...patch };
+    const merged = {
+      type: q.type,
+      severity: q.severity,
+      show: q.showResolved ? "all" : undefined,
+      sort: q.sort !== "severity" ? q.sort : undefined,
+      dir: q.dir !== "asc" ? q.dir : undefined,
+      ...patch,
+    };
     for (const [k, v] of Object.entries(merged)) if (v) p.set(k, v);
     const s = p.toString();
-    return `/alerts${s ? `?${s}` : ""}`;
+    return `/elefin/alerts${s ? `?${s}` : ""}`;
+  };
+  const exportQs = () => {
+    const p = new URLSearchParams();
+    if (q.type) p.set("type", q.type);
+    if (q.severity) p.set("severity", q.severity);
+    if (q.showResolved) p.set("show", "all");
+    if (q.sort !== "severity") p.set("sort", q.sort);
+    if (q.dir !== "asc") p.set("dir", q.dir);
+    const s = p.toString();
+    return s ? `?${s}` : "";
   };
 
   return (
@@ -90,16 +107,19 @@ export default async function AlertsPage({
         <Chip href={qs({ show: q.showResolved ? undefined : "all" })} active={q.showResolved}>
           show acknowledged
         </Chip>
+        <a className="ml-auto text-accent hover:underline" href={`/api/alerts/export${exportQs()}`}>
+          Export CSV
+        </a>
       </div>
 
       <Card className="overflow-x-auto p-0">
         <table className="w-full min-w-[820px] text-[13px]">
           <thead>
             <tr className="border-b border-rule-2 text-left text-[11px] uppercase tracking-[0.08em] text-muted">
-              <th className="px-3 py-1.5 font-medium">Severity</th>
-              <th className="px-3 py-1.5 font-medium">Type</th>
+              <SortTh q={q} qs={qs} col="severity" label="Severity" />
+              <SortTh q={q} qs={qs} col="type" label="Type" />
               <th className="px-3 py-1.5 font-medium">What</th>
-              <th className="px-3 py-1.5 font-medium">Age</th>
+              <SortTh q={q} qs={qs} col="age" label="Age" />
               <th className="px-3 py-1.5 font-medium text-right">Action</th>
             </tr>
           </thead>
@@ -273,6 +293,30 @@ export default async function AlertsPage({
         </table>
       </Card>
     </div>
+  );
+}
+
+function SortTh({
+  q,
+  qs,
+  col,
+  label,
+}: {
+  q: AlertsQuery;
+  qs: (patch: Record<string, string | undefined>) => string;
+  col: AlertsSortKey;
+  label: string;
+}) {
+  const active = q.sort === col;
+  const nextDir = active && q.dir === "desc" ? "asc" : "desc";
+  const arrow = active ? (q.dir === "desc" ? " ↓" : " ↑") : "";
+  return (
+    <th className="px-3 py-1.5 font-medium">
+      <Link href={qs({ sort: col, dir: nextDir })} className={cn("hover:text-ink", active && "text-ink")}>
+        {label}
+        {arrow}
+      </Link>
+    </th>
   );
 }
 
