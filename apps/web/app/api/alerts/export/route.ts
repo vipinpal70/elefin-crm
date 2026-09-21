@@ -11,6 +11,7 @@ const COLUMNS: Array<[string, (r: AlertRow) => unknown]> = [
   ["title", (r) => r.title],
   ["client_id", (r) => r.clientId],
   ["client_name", (r) => r.clientName],
+  ["client_email", (r) => r.clientEmail],
   ["created_at", (r) => r.createdAt],
   ["acknowledged_at", (r) => r.acknowledgedAt],
   ["snoozed_until", (r) => r.snoozedUntil],
@@ -23,14 +24,16 @@ const cell = (v: unknown): string => {
 };
 
 export async function GET(req: NextRequest) {
-  await requireSession();
+  const session = await requireSession();
+  const includePii = session.role === "owner" || session.role === "analyst";
 
   const sp = Object.fromEntries(req.nextUrl.searchParams.entries());
   const q = parseAlertsQuery(sp);
   const { rows } = await fetchAlerts(q);
 
-  const header = COLUMNS.map(([c]) => c).join(",");
-  const lines = rows.map((r) => COLUMNS.map(([, get]) => cell(get(r))).join(","));
+  const cols = includePii ? COLUMNS : COLUMNS.filter(([c]) => c !== "client_email");
+  const header = cols.map(([c]) => c).join(",");
+  const lines = rows.map((r) => cols.map(([, get]) => cell(get(r))).join(","));
   const csv = [header, ...lines].join("\n") + "\n";
 
   const stamp = new Date().toISOString().slice(0, 10);

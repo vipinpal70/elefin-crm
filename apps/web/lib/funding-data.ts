@@ -62,6 +62,7 @@ export interface FundingRow {
   _id: string;
   clientId: number | null;
   clientName: string;
+  clientEmail: string | null;
   login: string | null;
   type: string;
   status: string;
@@ -110,10 +111,10 @@ async function loadFunding(q: FundingQuery): Promise<FundingResult> {
   ]);
 
   const ids = [...new Set(docs.map((d) => d.clientId).filter((x): x is number => x != null))];
-  const names = new Map(
-    (await Client.find({ _id: { $in: ids } }, { name: 1 }).lean()).map((c) => [
+  const clients = new Map(
+    (await Client.find({ _id: { $in: ids } }, { name: 1, email: 1 }).lean()).map((c) => [
       c._id,
-      c.name ?? "",
+      { name: c.name ?? "", email: c.email ?? null },
     ]),
   );
 
@@ -122,8 +123,9 @@ async function loadFunding(q: FundingQuery): Promise<FundingResult> {
 
   return {
     rows: docs.map((d) => {
-      const p = plain<Omit<FundingRow, "clientName">>(d);
-      return { ...p, clientName: p.clientId != null ? names.get(p.clientId) ?? "" : "" };
+      const p = plain<Omit<FundingRow, "clientName" | "clientEmail">>(d);
+      const c = p.clientId != null ? clients.get(p.clientId) : undefined;
+      return { ...p, clientName: c?.name ?? "", clientEmail: c?.email ?? null };
     }),
     total,
     totals: {

@@ -11,15 +11,17 @@ const cell = (v: unknown): string => {
 };
 
 export async function GET(req: NextRequest) {
-  await requireSession();
+  const session = await requireSession();
+  const includePii = session.role === "owner" || session.role === "analyst";
   const sp = Object.fromEntries(req.nextUrl.searchParams.entries());
   const q = { ...parseFundingQuery(sp), page: 1, perPage: 200 };
 
-  const header = [
+  const cols = [
     "txn_id",
     "occurred_at",
     "client_id",
     "client_name",
+    ...(includePii ? ["client_email"] : []),
     "login",
     "type",
     "status",
@@ -29,7 +31,8 @@ export async function GET(req: NextRequest) {
     "payment_method",
     "paid_currency",
     "paid_amount",
-  ].join(",");
+  ];
+  const header = cols.join(",");
 
   const lines: string[] = [];
   for (let page = 1; page <= 60; page += 1) {
@@ -42,6 +45,7 @@ export async function GET(req: NextRequest) {
           r.occurredAt ?? "",
           r.clientId ?? "",
           r.clientName,
+          ...(includePii ? [r.clientEmail ?? ""] : []),
           r.login ?? "",
           r.type,
           r.status,
