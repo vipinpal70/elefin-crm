@@ -16,6 +16,7 @@ const JOB_CACHE_TAGS: Record<SyncJob, Tag[]> = {
   snapshot: ["book"],
   alerts: ["alerts"],
   digest: ["digest"],
+  "pnl-fix": ["trades", "book"],
 };
 
 export interface JobResult {

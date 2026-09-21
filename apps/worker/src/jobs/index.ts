@@ -9,6 +9,7 @@ import { syncPositions } from "./sync-positions";
 import { snapshotJob } from "./build-snapshots";
 import { runAlerts } from "./run-alerts";
 import { digestJob } from "./digest";
+import { fixTradeProfit } from "./fix-trade-profit";
 
 export const JOBS: Record<SyncJob, Job> = {
   me: syncMe,
@@ -20,4 +21,5 @@ export const JOBS: Record<SyncJob, Job> = {
   snapshot: snapshotJob,
   alerts: runAlerts,
   digest: digestJob,
+  "pnl-fix": fixTradeProfit,
 };

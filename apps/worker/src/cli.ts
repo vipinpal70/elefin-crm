@@ -1,7 +1,8 @@
 /**
  * Run one job by hand:
  *   npm run job --workspace @elefin/worker -- me
- *   (me | clients | accounts | transactions | trades | positions | snapshot | alerts)
+ *   (me | clients | accounts | transactions | trades | positions | snapshot |
+ *    alerts | digest | pnl-fix)
  */
 import "./env"; // loads repo-root .env before anything reads process.env
 import { connect, disconnect, type SyncJob } from "@elefin/db";

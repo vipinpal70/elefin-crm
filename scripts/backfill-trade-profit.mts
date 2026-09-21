@@ -15,6 +15,11 @@
  * (mapTrade's moneyOrKeep omits the field instead when the API sends null).
  *
  *   npm run backfill:trade-profit
+ *
+ * Same logic also runs as the worker's "pnl-fix" job
+ * (apps/worker/src/jobs/fix-trade-profit.ts), triggerable on demand from
+ * /elefin/sync's "Run a job now" panel — use that when you don't have CLI
+ * access to the server. Keep both in sync if the recovery logic changes.
  */
 import path from "node:path";
 import dotenv from "dotenv";

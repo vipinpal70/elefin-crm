@@ -27,7 +27,7 @@ const TYPE_LABEL: Record<string, string> = {
   big_deposit: "Big deposit",
   big_withdrawal: "Big withdrawal",
   funded_never_traded: "Funded, never traded",
-  gone_dormant: "Gone dormant",
+  gone_dormant: "Inactive",
   balance_wipeout: "Balance wipeout",
   margin_pressure: "Margin pressure",
   new_whale: "New whale",

@@ -105,6 +105,7 @@ export const SYNC_JOBS = [
   "snapshot",
   "alerts",
   "digest",
+  "pnl-fix",
 ] as const;
 export type SyncJob = (typeof SYNC_JOBS)[number];
 
